@@ -1,0 +1,13 @@
+/**
+ * Global theme colors – single source of truth.
+ * Primary: brand orange. Secondary: blue. Tertiary: light surfaces/accents.
+ */
+:root {
+  --color-primary: #ff7a00;
+  --color-primary-hover: #ff8a1f;
+  --color-secondary: #00529b;
+  --color-tertiary: #fff7ef;
+  --color-tertiary-hover: #ffedd9;
+  --color-bg-gradient-start: #ffe7cf;
+  --color-bg-gradient-end: #f7f7fb;
+}

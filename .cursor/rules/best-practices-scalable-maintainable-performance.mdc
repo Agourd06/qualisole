@@ -1,0 +1,53 @@
+---
+description: Best practices, scalability, maintainability, and performance standards
+alwaysApply: true
+---
+
+# Best Practices, Scalability, Maintainability & Performance
+
+Follow these standards on every change.
+
+## Best Practices
+
+- **Single responsibility**: One module/function does one thing. Split large files by domain (e.g. `auth.api.ts`, `geds.api.ts`).
+- **Single source of truth**: URLs and env in `utils/constants.ts`; API paths in `api/*.api.ts`; no duplicated strings or magic numbers.
+- **Typing**: Prefer explicit types/interfaces; avoid `any`. Export shared types from `features/*/types`.
+- **Naming**: Clear, consistent names (e.g. `getGeds`, `loginRequest`). Use kebab-case for files, PascalCase for components.
+
+## Scalability
+
+- **API layer**: Keep `api/*.api.ts` per domain; add new domains as new files, not by stuffing into one file.
+- **Features**: One feature per folder under `features/` (pages, services, types). New features = new folder.
+- **State**: Prefer local state; lift only when needed. Use context sparingly (e.g. language, auth).
+
+## Maintainability
+
+- **Imports**: Prefer `api/` and `utils/constants` for HTTP and URLs; features use services or api, not raw fetch/axios URLs.
+- **DRY**: Extract repeated logic into hooks, utils, or shared components. No copy-paste of API calls or validation.
+- **Comments**: Document non-obvious behavior and public API contracts; avoid commenting the obvious.
+
+## Performance
+
+- **Lists**: Use `key` on list items (stable id). For long lists, consider virtualization or pagination.
+- **Images**: Use `loading="lazy"` and sensible dimensions; prefer `object-fit` over huge assets.
+- **Bundling**: Avoid importing entire libraries when a single function suffices; keep tree-shaking in mind.
+- **Renders**: Avoid inline object/array creation in JSX (e.g. `style={{}}`) when it causes unnecessary re-renders; memoize or move out when needed.
+
+## Quick Examples
+
+```typescript
+// ❌ BAD – URL mixed in feature, no type
+const res = await fetch('https://stage.back.muntadaa.online/api/geds?kind=qualiphoto');
+
+// ✅ GOOD – API in api layer, typed
+import { getGeds } from '../../api/geds.api';
+const list = await getGeds({ kind: 'qualiphoto', idsource: 0 });
+```
+
+```tsx
+// ❌ BAD – inline object causes new ref every render
+<Button style={{ marginTop: 8 }} />
+
+// ✅ GOOD – constant or Tailwind
+<Button className="mt-2" />
+```
