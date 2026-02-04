@@ -8,9 +8,14 @@ function truncateTitle(text: string, maxLength: number = 20): string {
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
 }
 
+function truncateDescription(text: string, maxLength: number = 140): string {
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
 export interface QualiphotoCardProps {
   imageUrl: string;
   title: string;
+  description?: string | null;
   author: string | null;
   chantier: string | null;
   createdAt: string;
@@ -18,20 +23,84 @@ export interface QualiphotoCardProps {
   /** When set with onDragStart, the card is draggable (e.g. left column → right). */
   ged?: GedItem;
   onDragStart?: (e: React.DragEvent, ged: GedItem) => void;
+  /** Layout variant: default overlay (full-image) or split (image left, content right). */
+  layout?: 'overlay' | 'split';
 }
 
 /** Professional photo card: 16:9 aspect, overlay with metadata. Optional drag support. */
 export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
   imageUrl,
   title,
+  description,
   author,
   chantier,
   createdAt,
   onClick,
   ged,
   onDragStart,
+  layout = 'overlay',
 }) => {
   const isDraggable = Boolean(ged && onDragStart);
+
+  if (layout === 'split') {
+    const hasDescription = Boolean(description && description.trim().length > 0);
+    const isHtmlDescription =
+      hasDescription && /<\/?[a-z][\s\S]*>/i.test(description as string);
+
+    return (
+      <article
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        draggable={isDraggable}
+        onDragStart={isDraggable && ged ? (e) => onDragStart?.(e, ged) : undefined}
+        onClick={onClick}
+        onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+        className={`group flex w-full overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 ease-out ${
+          onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20' : ''
+        } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        aria-label={title}
+      >
+        <div className="relative w-[50%] min-w-[45%] max-w-[52%] h-44 sm:h-48 md:h-52">
+          <img
+            src={imageUrl}
+            alt={title}
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
+            loading="lazy"
+          />
+        </div>
+        <div className="flex flex-1 flex-col justify-between gap-2 p-4 overflow-hidden">
+          <div className="flex items-center justify-between gap-3 text-[0.75rem] text-neutral-600">
+            <span className="min-w-0 truncate font-semibold">
+              {author || '—'}
+            </span>
+            <span className="shrink-0 tabular-nums font-medium">
+              {formatDisplayDate(createdAt)}
+            </span>
+          </div>
+          <div className="space-y-1 overflow-hidden">
+            <p className="text-sm font-semibold text-neutral-900 truncate">
+              {truncateTitle(title, 40)}
+            </p>
+            {hasDescription &&
+              (isHtmlDescription ? (
+                <div
+                  className="max-h-24 overflow-hidden text-xs leading-snug text-neutral-700 break-words"
+                  dangerouslySetInnerHTML={{ __html: description as string }}
+                />
+              ) : (
+                <p className="max-h-24 overflow-hidden text-xs leading-snug text-neutral-700 break-words">
+                  {truncateDescription(description as string, 220)}
+                </p>
+              ))}
+          </div>
+          <p className="mt-1 text-[0.75rem] text-neutral-500 truncate">
+            {chantier || '—'}
+          </p>
+        </div>
+      </article>
+    );
+  }
+
   return (
   <article
     role={onClick ? 'button' : undefined}

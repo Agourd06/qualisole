@@ -53,7 +53,7 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
       <div
-        className="relative z-10 w-full max-h-[90vh] overflow-auto rounded-2xl bg-white shadow-2xl focus:outline-none"
+        className="relative z-10 w-[80%] max-h-[90vh] overflow-auto rounded-2xl bg-white shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

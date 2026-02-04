@@ -220,31 +220,60 @@ export async function generateQualiphotoPdf(
   doc.save(name);
 }
 
-/** Row data for folder GEDs table PDF (image as data URL, title and description text). */
+/** Row data for folder GEDs table PDF. */
 export interface FolderGedRow {
   title: string;
   description: string;
   imageDataUrl: string | null;
+  /** Display under the image (small type). */
+  author?: string | null;
+  /** Display under the image (small type), e.g. "03/02/2026". */
+  publishedDate?: string;
 }
 
-const FOLDER_TABLE_CONFIG = {
-  imageColWidthMm: 32,
-  titleColWidthMm: 42,
-  /** Description gets remaining width. */
-  rowImageHeightMm: 26,
+export interface GenerateFolderPdfOptions {
+  introduction?: string | null;
+  conclusion?: string | null;
+}
+
+/** Premium folder PDF: centered title, intro, table (image + date/author under image | title + description), conclusion. */
+const FOLDER_PDF = {
+  marginMm: 7,
+  titleFontSize: 18,
+  titleSpacingBelowMm: 14,
+  introFontSize: 10,
+  introLineHeight: 1.5,
+  introSpacingBelowMm: 12,
+  introColor: GRAY,
+  imageColWidthMm: 52,
+  imageMaxHeightMm: 48,
+  metaUnderImageFontSize: 7,
+  metaUnderImageGapMm: 1,
+  colGapMm: 4,
   headerFontSize: 10,
-  cellFontSize: 9,
-  cellPaddingMm: 2,
+  rowTitleFontSize: 11,
+  rowDescFontSize: 9,
+  rowDescLineHeight: 1.45,
+  /** Slightly darker than GRAY for more weight. */
+  rowDescColor: [55, 55, 58] as [number, number, number],
+  cellPaddingMm: 3,
+  rowSeparatorLineWidth: 0.15,
+  rowSeparatorColor: [230, 230, 230] as [number, number, number],
+  conclusionMarginTopMm: 12,
+  conclusionPaddingMm: 8,
+  conclusionFontSize: 10,
+  conclusionLineHeight: 1.5,
 };
 
 /**
- * Generate a PDF with a table: one row per GED, columns [Image | Title | Description].
- * Used for "folder PDF" next to folder name.
+ * Generate a premium folder PDF: centered title, introduction, table (image + date/author under image | title + description), conclusion.
+ * Horizontal separators only; date and author under each image.
  */
 export async function generateFolderGedsTablePdf(
   folderTitle: string,
   rows: FolderGedRow[],
-  filename?: string
+  filename?: string,
+  options?: GenerateFolderPdfOptions
 ): Promise<void> {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -252,137 +281,207 @@ export async function generateFolderGedsTablePdf(
     format: 'a4',
   });
 
-  const margin = 15;
+  const margin = FOLDER_PDF.marginMm;
   const { width: pageWidth, height: pageHeight } = getPageSize(doc);
   const contentWidth = pageWidth - 2 * margin;
-  const descColWidth =
+  const textColWidth =
     contentWidth -
-    FOLDER_TABLE_CONFIG.imageColWidthMm -
-    FOLDER_TABLE_CONFIG.titleColWidthMm -
-    FOLDER_TABLE_CONFIG.cellPaddingMm * 6;
+    FOLDER_PDF.imageColWidthMm -
+    FOLDER_PDF.colGapMm -
+    FOLDER_PDF.cellPaddingMm * 2;
 
   let y = margin;
 
-  const drawTableHeader = (startY: number) => {
-    doc.setFontSize(FOLDER_TABLE_CONFIG.headerFontSize);
+  // —— 1. Header: centered title, bold, generous spacing ——
+  const safeTitle = (folderTitle || 'Folder').trim() || 'Folder';
+  doc.setFontSize(FOLDER_PDF.titleFontSize);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...BLUE);
+  const titleWidth = doc.getTextWidth(safeTitle);
+  doc.text(safeTitle, (pageWidth - titleWidth) / 2, y + 6);
+  y += FOLDER_PDF.titleSpacingBelowMm;
+
+  // —— 2. Introduction (under title) ——
+  const introduction = options?.introduction?.trim() ?? '';
+  if (introduction) {
+    doc.setFontSize(FOLDER_PDF.introFontSize);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...FOLDER_PDF.introColor);
+    const introLines = doc.splitTextToSize(stripHtml(introduction), contentWidth);
+    const lineHeightMm =
+      FOLDER_PDF.introFontSize * 0.35 * FOLDER_PDF.introLineHeight;
+    for (let i = 0; i < introLines.length; i++) {
+      doc.text(introLines[i], margin, y + FOLDER_PDF.introFontSize * 0.35);
+      y += lineHeightMm;
+    }
+    y += FOLDER_PDF.introSpacingBelowMm;
+  }
+
+  const maxY = pageHeight - margin - 20;
+
+  const drawTableHeaderLine = (startY: number) => {
+    doc.setFontSize(FOLDER_PDF.headerFontSize);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...BLUE);
-    let x = margin;
-    doc.text('Image', x + FOLDER_TABLE_CONFIG.cellPaddingMm, startY + 5);
-    x += FOLDER_TABLE_CONFIG.imageColWidthMm + FOLDER_TABLE_CONFIG.cellPaddingMm * 2;
-    doc.text('Title', x + FOLDER_TABLE_CONFIG.cellPaddingMm, startY + 5);
-    x += FOLDER_TABLE_CONFIG.titleColWidthMm + FOLDER_TABLE_CONFIG.cellPaddingMm * 2;
-    doc.text('Description', x + FOLDER_TABLE_CONFIG.cellPaddingMm, startY + 5);
+    doc.text('Image', margin + FOLDER_PDF.cellPaddingMm, startY + 5);
+    doc.text('Title', margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + FOLDER_PDF.cellPaddingMm, startY + 5);
     doc.setDrawColor(...BLUE);
-    doc.setLineWidth(0.3);
+    doc.setLineWidth(0.35);
     doc.line(margin, startY + 7, pageWidth - margin, startY + 7);
   };
 
-  // Title: folder name (centred)
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...BLUE);
-  const safeTitle = (folderTitle || 'Folder').trim() || 'Folder';
-  const titleWidth = doc.getTextWidth(safeTitle);
-  doc.text(safeTitle, (pageWidth - titleWidth) / 2, y + 6);
-  y += 14;
-
   if (rows.length === 0) {
-    doc.setFontSize(10);
+    drawTableHeaderLine(y);
+    y += 10;
+    doc.setFontSize(FOLDER_PDF.rowDescFontSize);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...GRAY);
-    doc.text('No items.', margin, y + 6);
-    doc.save(filename || `folder-${Date.now()}.pdf`);
-    return;
-  }
+    doc.text('No items.', margin, y + 5);
+    y += 12;
+    // Still render conclusion if present
+  } else {
+    const lineHeightDesc =
+      FOLDER_PDF.rowDescFontSize * 0.35 * FOLDER_PDF.rowDescLineHeight;
 
-  const lineHeightMm = FOLDER_TABLE_CONFIG.cellFontSize * 0.4;
-  const maxY = pageHeight - margin - 10;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const imageH = Math.min(
+        FOLDER_PDF.imageMaxHeightMm,
+        FOLDER_PDF.imageMaxHeightMm
+      );
+      const metaH =
+        (row.publishedDate || row.author
+          ? FOLDER_PDF.metaUnderImageFontSize * 0.35 + FOLDER_PDF.metaUnderImageGapMm
+          : 0) + FOLDER_PDF.cellPaddingMm;
+      const descText = stripHtml(row.description || '').trim().slice(0, 800);
+      const descLinesForRow = doc.splitTextToSize(descText, textColWidth);
+      const descH =
+        Math.min(descLinesForRow.length, 8) * lineHeightDesc +
+        FOLDER_PDF.rowTitleFontSize * 0.35 +
+        FOLDER_PDF.cellPaddingMm * 2;
+      const rowHeight = Math.max(
+        imageH + metaH + FOLDER_PDF.cellPaddingMm * 2,
+        descH + FOLDER_PDF.cellPaddingMm * 2
+      );
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const rowHeight = Math.max(
-      FOLDER_TABLE_CONFIG.rowImageHeightMm + FOLDER_TABLE_CONFIG.cellPaddingMm * 2,
-      lineHeightMm * 2 + FOLDER_TABLE_CONFIG.cellPaddingMm * 2
-    );
-
-    if (i === 0 || y + rowHeight > maxY) {
-      if (y > margin && i > 0) {
+      if (y + rowHeight > maxY) {
         doc.addPage();
         y = margin;
       }
-      drawTableHeader(y);
-      y += 10;
-    }
 
-    const rowY = y;
-    let x = margin + FOLDER_TABLE_CONFIG.cellPaddingMm;
-
-    // Column 1: Image
-    if (row.imageDataUrl) {
-      try {
-        const { w: imgW, h: imgH } = await loadImageDimensions(row.imageDataUrl);
-        const aspect = imgH / imgW;
-        let fitW = FOLDER_TABLE_CONFIG.imageColWidthMm;
-        let fitH = fitW * aspect;
-        if (fitH > FOLDER_TABLE_CONFIG.rowImageHeightMm) {
-          fitH = FOLDER_TABLE_CONFIG.rowImageHeightMm;
-          fitW = fitH / aspect;
-        }
-        const imgX = margin + (FOLDER_TABLE_CONFIG.imageColWidthMm - fitW) / 2;
-        const format = row.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(
-          row.imageDataUrl,
-          format,
-          imgX,
-          rowY + FOLDER_TABLE_CONFIG.cellPaddingMm,
-          fitW,
-          fitH,
-          undefined,
-          'FAST'
-        );
-      } catch {
-        doc.setFontSize(FOLDER_TABLE_CONFIG.cellFontSize);
-        doc.setTextColor(...GRAY);
-        doc.text('—', x, rowY + FOLDER_TABLE_CONFIG.rowImageHeightMm / 2);
+      if (i === 0) {
+        drawTableHeaderLine(y);
+        y += 10;
       }
-    } else {
-      doc.setFontSize(FOLDER_TABLE_CONFIG.cellFontSize);
+
+      const rowY = y;
+      const imgColX = margin + FOLDER_PDF.cellPaddingMm;
+      const textColX = margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + FOLDER_PDF.cellPaddingMm;
+
+      // —— Left column: image then date & author under it ——
+      let imageBottomY = rowY + FOLDER_PDF.cellPaddingMm;
+      if (row.imageDataUrl) {
+        try {
+          const { w: imgW, h: imgH } = await loadImageDimensions(row.imageDataUrl);
+          const aspect = imgH / imgW;
+          let fitW = FOLDER_PDF.imageColWidthMm - FOLDER_PDF.cellPaddingMm * 2;
+          let fitH = fitW * aspect;
+          if (fitH > FOLDER_PDF.imageMaxHeightMm) {
+            fitH = FOLDER_PDF.imageMaxHeightMm;
+            fitW = fitH / aspect;
+          }
+          const imgX = margin + (FOLDER_PDF.imageColWidthMm - fitW) / 2;
+          const format = row.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+          doc.addImage(
+            row.imageDataUrl,
+            format,
+            imgX,
+            rowY + FOLDER_PDF.cellPaddingMm,
+            fitW,
+            fitH,
+            undefined,
+            'NONE'
+          );
+          imageBottomY = rowY + FOLDER_PDF.cellPaddingMm + fitH;
+        } catch {
+          doc.setFontSize(FOLDER_PDF.rowDescFontSize);
+          doc.setTextColor(...GRAY);
+          doc.text('—', imgColX, rowY + FOLDER_PDF.cellPaddingMm + 8);
+          imageBottomY = rowY + FOLDER_PDF.cellPaddingMm + 12;
+        }
+      }
+
+      doc.setFontSize(FOLDER_PDF.metaUnderImageFontSize);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(...GRAY);
-      doc.text('—', x, rowY + FOLDER_TABLE_CONFIG.rowImageHeightMm / 2);
+      if (row.publishedDate || row.author) {
+        imageBottomY += FOLDER_PDF.metaUnderImageGapMm;
+        const metaY = imageBottomY + FOLDER_PDF.metaUnderImageFontSize * 0.35;
+        const imgColRight = margin + FOLDER_PDF.imageColWidthMm - FOLDER_PDF.cellPaddingMm;
+        if (row.publishedDate) {
+          doc.text(row.publishedDate, imgColX, metaY);
+        }
+        if (row.author) {
+          doc.text(row.author, imgColRight, metaY, { align: 'right' });
+        }
+      }
+
+      // —— Right column: title (bold) + description (no label) ——
+      doc.setFontSize(FOLDER_PDF.rowTitleFontSize);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...BLACK);
+      const titleText = (row.title || '—').trim().slice(0, 120);
+      const titleLines = doc.splitTextToSize(titleText, textColWidth);
+      let textY = rowY + FOLDER_PDF.cellPaddingMm;
+      doc.text(titleLines[0] ?? '—', textColX, textY + FOLDER_PDF.rowTitleFontSize * 0.35);
+      textY += FOLDER_PDF.rowTitleFontSize * 0.35 + 2;
+
+      doc.setFontSize(FOLDER_PDF.rowDescFontSize);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...FOLDER_PDF.rowDescColor);
+      for (let l = 0; l < Math.min(descLinesForRow.length, 10); l++) {
+        doc.text(descLinesForRow[l], textColX, textY + FOLDER_PDF.rowDescFontSize * 0.35);
+        textY += lineHeightDesc;
+      }
+
+      // Horizontal separator only (no vertical borders)
+      doc.setDrawColor(...FOLDER_PDF.rowSeparatorColor);
+      doc.setLineWidth(FOLDER_PDF.rowSeparatorLineWidth);
+      doc.line(margin, rowY + rowHeight, pageWidth - margin, rowY + rowHeight);
+
+      y = rowY + rowHeight + 3;
     }
+  }
 
-    x += FOLDER_TABLE_CONFIG.imageColWidthMm + FOLDER_TABLE_CONFIG.cellPaddingMm * 2;
-
-    // Column 2: Title
-    doc.setFontSize(FOLDER_TABLE_CONFIG.cellFontSize);
+  // —— 5. Conclusion (distinct section) ——
+  const conclusion = options?.conclusion?.trim() ?? '';
+  if (conclusion) {
+    let conclY = y + FOLDER_PDF.conclusionMarginTopMm;
+    if (conclY > maxY - 30) {
+      doc.addPage();
+      conclY = margin;
+    }
+    doc.setDrawColor(...FOLDER_PDF.rowSeparatorColor);
+    doc.setLineWidth(0.4);
+    doc.line(margin, conclY - 4, pageWidth - margin, conclY - 4);
+    doc.setFontSize(FOLDER_PDF.conclusionFontSize);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...BLACK);
-    const titleText = (row.title || '—').trim().slice(0, 80);
-    const titleLines = doc.splitTextToSize(titleText, FOLDER_TABLE_CONFIG.titleColWidthMm);
-    doc.text(titleLines[0] ?? '—', x, rowY + FOLDER_TABLE_CONFIG.cellPaddingMm + lineHeightMm);
-    if (titleLines.length > 1) {
-      doc.text(titleLines[1], x, rowY + FOLDER_TABLE_CONFIG.cellPaddingMm + lineHeightMm * 2);
-    }
-
-    x += FOLDER_TABLE_CONFIG.titleColWidthMm + FOLDER_TABLE_CONFIG.cellPaddingMm * 2;
-
-    // Column 3: Description
     doc.setTextColor(...GRAY);
-    const descText = stripHtml(row.description || '').slice(0, 500);
-    const descLines = doc.splitTextToSize(descText, descColWidth);
-    let dy = FOLDER_TABLE_CONFIG.cellPaddingMm;
-    for (let l = 0; l < Math.min(descLines.length, 4); l++) {
-      doc.text(descLines[l], x, rowY + dy + lineHeightMm);
-      dy += lineHeightMm;
+    const conclLines = doc.splitTextToSize(
+      stripHtml(conclusion),
+      contentWidth - FOLDER_PDF.conclusionPaddingMm * 2,
+    );
+    const conclLineH =
+      FOLDER_PDF.conclusionFontSize * 0.35 * FOLDER_PDF.conclusionLineHeight;
+    let cy = conclY + FOLDER_PDF.conclusionPaddingMm;
+    for (let i = 0; i < conclLines.length; i++) {
+      if (cy + conclLineH > pageHeight - margin - 10) {
+        doc.addPage();
+        cy = margin + FOLDER_PDF.conclusionPaddingMm;
+      }
+      doc.text(conclLines[i], margin + FOLDER_PDF.conclusionPaddingMm, cy + FOLDER_PDF.conclusionFontSize * 0.35);
+      cy += conclLineH;
     }
-
-    // Row border (light)
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.2);
-    doc.line(margin, rowY + rowHeight, pageWidth - margin, rowY + rowHeight);
-
-    y = rowY + rowHeight + 2;
   }
 
   doc.save(filename || `folder-${Date.now()}.pdf`);

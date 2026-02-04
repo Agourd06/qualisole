@@ -7,12 +7,21 @@ import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
 import { getGeds } from '../services/ged.service';
 import type { GedMovePayload } from '../services/ged.service';
 import { buildImageUrl, isImageUrl } from '../utils/qualiphotoHelpers';
+import { applyOrderToItems, filterFolderImageGeds } from '../utils/folderGedFilter';
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { QualiphotoDetailModal } from '../components/QualiphotoDetailModal';
 import { QualiphotoFolderPanel } from '../components/QualiphotoFolderPanel';
 import { useQualiphotoByFolder } from '../hooks/useQualiphotoByFolder';
+import { useFolderImageOrder } from '../hooks/useFolderImageOrder';
 import { useMoveGedToFolder } from '../hooks/useMoveGedToFolder';
 import type { GedItem } from '../types/ged.types';
+
+function arrayMove<T>(arr: T[], from: number, to: number): T[] {
+  const copy = [...arr];
+  const [removed] = copy.splice(from, 1);
+  copy.splice(to, 0, removed);
+  return copy;
+}
 import {
   QUALIPHOTO_KIND,
   IDSOURCE_MAIN,
@@ -96,6 +105,19 @@ export const QualiphotoPage: React.FC = () => {
     refetch: refetchFolderList,
   } = useQualiphotoByFolder(folderId);
 
+  const { order: folderImageOrder, setOrder: setFolderImageOrder } =
+    useFolderImageOrder(folderId);
+
+  const orderedFolderItems = useMemo(
+    () => applyOrderToItems(folderItems, folderImageOrder),
+    [folderItems, folderImageOrder],
+  );
+
+  const orderedFolderImageIds = useMemo(
+    () => filterFolderImageGeds(orderedFolderItems, folderId).map((i) => i.id),
+    [orderedFolderItems, folderId],
+  );
+
   const handleMoveSuccess = useCallback(async () => {
     await Promise.all([refetchLeft(), refetchFolderList()]);
     setDndKey((k) => k + 1);
@@ -120,14 +142,27 @@ export const QualiphotoPage: React.FC = () => {
       const { destination, source, draggableId } = result;
       if (!destination) return;
 
-      if (source.droppableId === DROPPABLE_RIGHT) return;
-
       if (
         source.droppableId === destination.droppableId &&
         source.index === destination.index
       ) {
         return;
       }
+
+      if (
+        source.droppableId === DROPPABLE_RIGHT &&
+        destination.droppableId === DROPPABLE_RIGHT
+      ) {
+        const newOrderedIds = arrayMove(
+          orderedFolderImageIds,
+          source.index,
+          destination.index,
+        );
+        await setFolderImageOrder(newOrderedIds);
+        return;
+      }
+
+      if (source.droppableId === DROPPABLE_RIGHT) return;
 
       if (
         source.droppableId === DROPPABLE_LEFT &&
@@ -154,6 +189,8 @@ export const QualiphotoPage: React.FC = () => {
       isAssigning,
       leftImageItems,
       moveGedToFolder,
+      orderedFolderImageIds,
+      setFolderImageOrder,
     ],
   );
 
@@ -293,7 +330,7 @@ export const QualiphotoPage: React.FC = () => {
       <Navbar />
 
       <DragDropContext key={`${dndKey}-${folderId ?? 'none'}`} onDragEnd={handleDragEnd}>
-        <div className="relative">
+        <div className="">
           <div className="flex pb-12 pt-12 gap-0">
             {/* Left: all qualiphoto images (idsource = 0), draggable */}
             <aside
@@ -306,12 +343,15 @@ export const QualiphotoPage: React.FC = () => {
               renderPagination(leftPage, leftTotalPages, setLeftPage)}
           </aside>
 
-          <div className="min-w-[1rem] flex-1" aria-hidden />
+          <div
+            className="mx-6 w-[3px] self-stretch bg-primary rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.02)]"
+            aria-hidden
+          />
 
           {/* Right: chantier/folder panel (only GEDs with idsource = selected folder id) */}
           <QualiphotoFolderPanel
             selectedFolder={selectedFolder}
-            folderItems={folderItems}
+            orderedFolderItems={orderedFolderItems}
             folderLoading={folderLoading}
             folderError={folderError}
             moveError={moveError}

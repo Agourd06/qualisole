@@ -1,12 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTranslation } from 'react-i18next';
 import { QualiphotoCard } from './QualiphotoGallerySection';
-import { buildImageUrl } from '../utils/qualiphotoHelpers';
+import { FolderEditModal } from './FolderEditModal';
+import { buildImageUrl, formatDisplayDate } from '../utils/qualiphotoHelpers';
 import { filterFolderImageGeds } from '../utils/folderGedFilter';
 import { generateFolderGedsTablePdf } from '../utils/qualiphotoPdf';
+import { generateFolderGedsTableWord } from '../utils/qualiphotoWord';
 import { getStoredAuth } from '../../../utils/authStorage';
-import { QUALIPHOTO_ITEMS_PER_PAGE } from '../constants';
 import type { GedItem } from '../types/ged.types';
 
 const DROPPABLE_RIGHT = 'assigned';
@@ -14,11 +15,14 @@ const DROPPABLE_RIGHT = 'assigned';
 export interface FolderInfo {
   id: string;
   title: string | null;
+  description?: string | null;
+  conclusion?: string | null;
 }
 
 export interface QualiphotoFolderPanelProps {
   selectedFolder: FolderInfo | null;
-  folderItems: GedItem[];
+  /** Folder items in display order (already ordered by saved order). */
+  orderedFolderItems: GedItem[];
   folderLoading: boolean;
   folderError: string | null;
   moveError: string | null;
@@ -33,7 +37,7 @@ export interface QualiphotoFolderPanelProps {
  */
 export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   selectedFolder,
-  folderItems,
+  orderedFolderItems,
   folderLoading,
   folderError,
   moveError,
@@ -42,80 +46,179 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   onSelectGed,
 }) => {
   const { t } = useTranslation('qualiphotoPage');
-  const [rightPage, setRightPage] = useState(1);
+
+  const [folderMetaTitle, setFolderMetaTitle] = useState<string | null>(
+    selectedFolder?.title ?? null,
+  );
+  const [folderMetaDescription, setFolderMetaDescription] = useState<string | null>(
+    selectedFolder?.description ?? null,
+  );
+  const [folderMetaConclusion, setFolderMetaConclusion] = useState<string | null>(
+    selectedFolder?.conclusion ?? null,
+  );
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const folderId = selectedFolder?.id ?? null;
   const rightImageItems = useMemo(
-    () => filterFolderImageGeds(folderItems, folderId),
-    [folderItems, folderId],
+    () => filterFolderImageGeds(orderedFolderItems, folderId),
+    [orderedFolderItems, folderId],
   );
 
-  const rightTotalPages = Math.max(
-    1,
-    Math.ceil(rightImageItems.length / QUALIPHOTO_ITEMS_PER_PAGE),
-  );
-  const rightPaginated = useMemo(
-    () =>
-      rightImageItems.slice(
-        (rightPage - 1) * QUALIPHOTO_ITEMS_PER_PAGE,
-        rightPage * QUALIPHOTO_ITEMS_PER_PAGE,
-      ),
-    [rightImageItems, rightPage],
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const previousIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    previousIdsRef.current = new Set();
+  }, [folderId]);
+
+  useEffect(() => {
+    const currentIds = new Set(rightImageItems.map((i) => i.id));
+    const added = [...currentIds].filter((id) => !previousIdsRef.current.has(id));
+    if (added.length > 0) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        added.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+    previousIdsRef.current = currentIds;
+  }, [rightImageItems]);
+
+  const selectedForPdf = useMemo(
+    () => rightImageItems.filter((ged) => selectedIds.has(ged.id)),
+    [rightImageItems, selectedIds],
   );
 
-  useEffect(() => setRightPage(1), [folderId, rightImageItems.length]);
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(rightImageItems.map((i) => i.id)));
+  }, [rightImageItems]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  useEffect(() => {
+    setFolderMetaTitle(selectedFolder?.title ?? null);
+    setFolderMetaDescription(selectedFolder?.description ?? null);
+    setFolderMetaConclusion(selectedFolder?.conclusion ?? null);
+  }, [selectedFolder]);
 
   const [folderPdfGenerating, setFolderPdfGenerating] = useState(false);
+  const [folderWordGenerating, setFolderWordGenerating] = useState(false);
+
+  const buildRowsForExport = useCallback(async () => {
+    const { token } = getStoredAuth();
+    return Promise.all(
+      selectedForPdf.map(async (ged) => {
+        let imageDataUrl: string | null = null;
+        try {
+          const url = buildImageUrl(ged);
+          const res = await fetch(url, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) {
+            const blob = await res.blob();
+            imageDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          // leave null
+        }
+        return {
+          title: ged.title ?? '',
+          description: ged.description ?? '',
+          imageDataUrl,
+          author: ged.author ?? null,
+          publishedDate: formatDisplayDate(ged.created_at),
+        };
+      }),
+    );
+  }, [selectedForPdf]);
+
   const handleGenerateFolderPdf = useCallback(async () => {
     if (!selectedFolder || folderPdfGenerating || !folderId) return;
-    const imageGeds = filterFolderImageGeds(folderItems, folderId);
-    if (imageGeds.length === 0) return;
+    if (selectedForPdf.length === 0) return;
     setFolderPdfGenerating(true);
     try {
-      const { token } = getStoredAuth();
-      const rows = await Promise.all(
-        imageGeds.map(async (ged) => {
-          let imageDataUrl: string | null = null;
-          try {
-            const url = buildImageUrl(ged);
-            const res = await fetch(url, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-            if (res.ok) {
-              const blob = await res.blob();
-              imageDataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-            }
-          } catch {
-            // leave null
-          }
-          return {
-            title: ged.title ?? '',
-            description: ged.description ?? '',
-            imageDataUrl,
-          };
-        }),
+      const rows = await buildRowsForExport();
+      const safeName = ((folderMetaTitle ?? selectedFolder.title) || 'folder').replace(
+        /[^\w\-]/g,
+        '_',
       );
-      const safeName = (selectedFolder.title || 'folder').replace(/[^\w\-]/g, '_');
       await generateFolderGedsTablePdf(
-        selectedFolder.title ?? 'Folder',
+        folderMetaTitle ?? selectedFolder.title ?? 'Folder',
         rows,
         `folder-${safeName}-${Date.now()}.pdf`,
+        {
+          introduction: folderMetaDescription ?? selectedFolder.description ?? null,
+          conclusion: folderMetaConclusion ?? selectedFolder.conclusion ?? null,
+        },
       );
     } finally {
       setFolderPdfGenerating(false);
     }
-  }, [selectedFolder, folderId, folderItems, folderPdfGenerating]);
+  }, [
+    selectedFolder,
+    folderId,
+    selectedForPdf.length,
+    folderPdfGenerating,
+    folderMetaTitle,
+    folderMetaDescription,
+    folderMetaConclusion,
+    buildRowsForExport,
+  ]);
+
+  const handleGenerateFolderWord = useCallback(async () => {
+    if (!selectedFolder || folderWordGenerating || !folderId) return;
+    if (selectedForPdf.length === 0) return;
+    setFolderWordGenerating(true);
+    try {
+      const rows = await buildRowsForExport();
+      const safeName = ((folderMetaTitle ?? selectedFolder.title) || 'folder').replace(
+        /[^\w\-]/g,
+        '_',
+      );
+      await generateFolderGedsTableWord(
+        folderMetaTitle ?? selectedFolder.title ?? 'Folder',
+        rows,
+        `folder-${safeName}-${Date.now()}.docx`,
+        {
+          introduction: folderMetaDescription ?? selectedFolder.description ?? null,
+          conclusion: folderMetaConclusion ?? selectedFolder.conclusion ?? null,
+        },
+      );
+    } finally {
+      setFolderWordGenerating(false);
+    }
+  }, [
+    selectedFolder,
+    folderId,
+    selectedForPdf.length,
+    folderWordGenerating,
+    folderMetaTitle,
+    folderMetaDescription,
+    folderMetaConclusion,
+    buildRowsForExport,
+  ]);
 
   if (!selectedFolder) {
     return (
       <aside
         className="flex shrink-0 flex-col pr-8 sm:pr-12 lg:pr-16"
-        style={{ width: '33vw' }}
+        style={{ width: '47vw' }}
         aria-label={t('galleryAria')}
       >
         <div className="rounded-2xl bg-white/50 px-8 py-16 text-center text-sm text-neutral-500 backdrop-blur-sm">
@@ -152,23 +255,58 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
               <p className="mt-1 font-medium text-neutral-600">{t('dropHere')}</p>
             </div>
           ) : (
-            rightPaginated.map((ged, index) => (
+            rightImageItems.map((ged, index) => (
               <Draggable
                 key={ged.id}
                 draggableId={ged.id}
                 index={index}
-                isDragDisabled={true}
+                isDragDisabled={isAnyPending}
               >
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.draggableProps}>
-                    <QualiphotoCard
-                      imageUrl={buildImageUrl(ged)}
-                      title={ged.title || t('noTitle')}
-                      author={ged.author}
-                      chantier={ged.chantier ?? ged.categorie}
-                      createdAt={ged.created_at}
-                      onClick={() => onSelectGed(ged)}
-                    />
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    className={`flex items-start gap-3 rounded-2xl transition-shadow ${
+                      snapshot.isDragging ? 'shadow-lg z-10 bg-white rounded-2xl' : ''
+                    }`}
+                  >
+                    <label className="flex shrink-0 items-center pt-2 cursor-pointer focus-within:ring-2 focus-within:ring-primary/20 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(ged.id)}
+                        onChange={() => toggleSelection(ged.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary/20"
+                        aria-label={t('selectImageAria', { title: ged.title || t('noTitle') })}
+                      />
+                    </label>
+                    <div
+                      {...provided.dragHandleProps}
+                      className="flex shrink-0 cursor-grab active:cursor-grabbing touch-none p-2 -m-2 rounded-lg text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100"
+                      aria-label={t('reorderImageAria')}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <circle cx="9" cy="6" r="1.5" />
+                        <circle cx="15" cy="6" r="1.5" />
+                        <circle cx="9" cy="12" r="1.5" />
+                        <circle cx="15" cy="12" r="1.5" />
+                        <circle cx="9" cy="18" r="1.5" />
+                        <circle cx="15" cy="18" r="1.5" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <QualiphotoCard
+                        imageUrl={buildImageUrl(ged)}
+                        title={ged.title || t('noTitle')}
+                        description={ged.description ?? ''}
+                        author={ged.author}
+                        chantier={ged.chantier ?? ged.categorie}
+                        createdAt={ged.created_at}
+                        layout="split"
+                        onClick={() => onSelectGed(ged)}
+                      />
+                    </div>
                   </div>
                 )}
               </Draggable>
@@ -180,40 +318,10 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
     </Droppable>
   );
 
-  const renderPagination = () =>
-    rightTotalPages > 1 ? (
-      <nav
-        className="mt-6 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200/40 bg-white/60 px-5 py-4 backdrop-blur-sm"
-        aria-label={t('paginationAria')}
-      >
-        <span className="text-sm font-medium text-neutral-600">
-          {t('pageOf')} {rightPage} / {rightTotalPages}
-        </span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setRightPage((p) => Math.max(1, p - 1))}
-            disabled={rightPage <= 1}
-            className="rounded-lg bg-white/80 backdrop-blur-sm px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {t('previous')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setRightPage((p) => Math.min(rightTotalPages, p + 1))}
-            disabled={rightPage >= rightTotalPages}
-            className="rounded-lg bg-white/80 backdrop-blur-sm px-4 py-2 text-sm font-medium text-neutral-700 transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {t('next')}
-          </button>
-        </div>
-      </nav>
-    ) : null;
-
   return (
     <aside
       className="flex shrink-0 flex-col pr-8 sm:pr-12 lg:pr-16"
-      style={{ width: '33vw' }}
+      style={{ width: '47vw' }}
       aria-label={t('galleryAria')}
     >
       {moveError && (
@@ -228,30 +336,114 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
         <p className="mb-2 text-xs text-neutral-500">{t('moving')}</p>
       )}
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p
-          className="min-w-0 truncate text-xs font-medium text-neutral-600"
-          title={selectedFolder.title ?? undefined}
-        >
-          <span className="text-neutral-800">{selectedFolder.title ?? '—'}</span>
-          <span className="ml-1.5 text-neutral-500">
-            · {t('imageCount', { count: rightImageItems.length })}
-          </span>
-        </p>
-        <button
-          type="button"
-          onClick={handleGenerateFolderPdf}
-          disabled={folderPdfGenerating || rightImageItems.length === 0}
-          className="shrink-0 rounded bg-[rgb(0,82,155)] px-2 py-1 text-xs font-medium text-white hover:bg-[rgb(0,70,135)] disabled:opacity-50"
-          aria-label={t('generateFolderPdf')}
-        >
-          {folderPdfGenerating ? t('generatingPdf') : t('generateFolderPdf')}
-        </button>
+        <div className="flex items-center gap-2 min-w-0">
+          <p
+            className="min-w-0 truncate text-xs font-medium text-neutral-600"
+            title={folderMetaTitle ?? selectedFolder.title ?? undefined}
+          >
+            <span className="text-neutral-800">{folderMetaTitle ?? selectedFolder.title ?? '—'}</span>
+            <span className="ml-1.5 text-neutral-500">
+              · {t('imageCount', { count: rightImageItems.length })}
+              {rightImageItems.length > 0 && (
+                <span className="ml-1 text-neutral-400">
+                  ({t('selectedCount', { count: selectedIds.size })})
+                </span>
+              )}
+            </span>
+          </p>
+          {rightImageItems.length > 0 && (
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={selectAll}
+                className="text-xs font-medium text-neutral-500 hover:text-neutral-700 underline"
+              >
+                {t('selectAll')}
+              </button>
+              <span className="text-neutral-300">|</span>
+              <button
+                type="button"
+                onClick={deselectAll}
+                className="text-xs font-medium text-neutral-500 hover:text-neutral-700 underline"
+              >
+                {t('deselectAll')}
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label={t('editFolderAria')}
+            title={t('editFolderAria')}
+          >
+            <svg
+              className="h-3.5 w-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+          </button>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={handleGenerateFolderWord}
+            disabled={folderWordGenerating || selectedForPdf.length === 0}
+            className="rounded border border-[rgb(0,82,155)] bg-white px-2 py-1 text-xs font-medium text-[rgb(0,82,155)] hover:bg-[rgb(0,82,155)]/10 disabled:opacity-50"
+            aria-label={t('generateFolderWord')}
+            title={
+              selectedForPdf.length === 0
+                ? t('selectAtLeastOneForPdf')
+                : undefined
+            }
+          >
+            {folderWordGenerating ? t('generatingWord') : t('generateFolderWord')}
+          </button>
+          <button
+            type="button"
+            onClick={handleGenerateFolderPdf}
+            disabled={folderPdfGenerating || selectedForPdf.length === 0}
+            className="rounded bg-[rgb(0,82,155)] px-2 py-1 text-xs font-medium text-white hover:bg-[rgb(0,70,135)] disabled:opacity-50"
+            aria-label={t('generateFolderPdf')}
+            title={
+              selectedForPdf.length === 0
+                ? t('selectAtLeastOneForPdf')
+                : undefined
+            }
+          >
+            {folderPdfGenerating ? t('generatingPdf') : t('generateFolderPdf')}
+          </button>
+        </div>
       </div>
       <div>{renderRightContent()}</div>
-      {!folderLoading &&
-        !folderError &&
-        rightImageItems.length > 0 &&
-        renderPagination()}
+
+      {selectedFolder && (
+        <FolderEditModal
+          open={isEditModalOpen}
+          folderId={selectedFolder.id}
+          initialTitle={folderMetaTitle ?? selectedFolder.title ?? ''}
+          initialDescription={folderMetaDescription ?? selectedFolder.description ?? null}
+          initialConclusion={folderMetaConclusion ?? selectedFolder.conclusion ?? null}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaved={(payload) => {
+            if (payload.title) setFolderMetaTitle(payload.title);
+            if (payload.description !== undefined) {
+              setFolderMetaDescription(payload.description);
+            }
+            if (payload.conclusion !== undefined) {
+              setFolderMetaConclusion(payload.conclusion);
+            }
+          }}
+        />
+      )}
     </aside>
   );
 };
