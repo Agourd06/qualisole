@@ -3,7 +3,7 @@ import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTranslation } from 'react-i18next';
 import { QualiphotoCard } from './QualiphotoGallerySection';
 import { FolderEditModal } from './FolderEditModal';
-import { buildImageUrl, formatDisplayDate } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { filterFolderImageGeds } from '../utils/folderGedFilter';
 import { generateFolderGedsTablePdf } from '../utils/qualiphotoPdf';
 import { generateFolderGedsTableWord } from '../utils/qualiphotoWord';
@@ -21,6 +21,8 @@ export interface FolderInfo {
 
 export interface QualiphotoFolderPanelProps {
   selectedFolder: FolderInfo | null;
+  /** Chantier (project) name for display in header. */
+  chantierTitle?: string | null;
   /** Folder items in display order (already ordered by saved order). */
   orderedFolderItems: GedItem[];
   folderLoading: boolean;
@@ -37,6 +39,7 @@ export interface QualiphotoFolderPanelProps {
  */
 export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   selectedFolder,
+  chantierTitle,
   orderedFolderItems,
   folderLoading,
   folderError,
@@ -66,6 +69,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const previousIdsRef = useRef<Set<string>>(new Set());
+  const selectAllCheckboxRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     previousIdsRef.current = new Set();
@@ -98,13 +102,22 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
     });
   }, []);
 
-  const selectAll = useCallback(() => {
-    setSelectedIds(new Set(rightImageItems.map((i) => i.id)));
-  }, [rightImageItems]);
+  const allSelected =
+    rightImageItems.length > 0 && selectedIds.size === rightImageItems.length;
+  const someSelected = selectedIds.size > 0;
 
-  const deselectAll = useCallback(() => {
-    setSelectedIds(new Set());
-  }, []);
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rightImageItems.map((i) => i.id)));
+    }
+  }, [allSelected, rightImageItems]);
+
+  useEffect(() => {
+    const el = selectAllCheckboxRef.current;
+    if (el) el.indeterminate = someSelected && !allSelected;
+  }, [someSelected, allSelected]);
 
   useEffect(() => {
     setFolderMetaTitle(selectedFolder?.title ?? null);
@@ -266,7 +279,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                   <div
                     ref={provided.innerRef}
                     {...provided.draggableProps}
-                    className={`flex items-start gap-3 rounded-2xl transition-shadow ${
+                    className={`flex items-start gap-3 rounded-2xl border-b border-neutral-200 pb-3 last:border-b-0 last:pb-0 transition-shadow ${
                       snapshot.isDragging ? 'shadow-lg z-10 bg-white rounded-2xl' : ''
                     }`}
                   >
@@ -305,6 +318,8 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                         createdAt={ged.created_at}
                         layout="split"
                         onClick={() => onSelectGed(ged)}
+                        isVideo={isVideoUrl(ged.url)}
+                        isAudio={isAudioUrl(ged.url)}
                       />
                     </div>
                   </div>
@@ -335,41 +350,46 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
       {isAssigning && (
         <p className="mb-2 text-xs text-neutral-500">{t('moving')}</p>
       )}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <p
-            className="min-w-0 truncate text-xs font-medium text-neutral-600"
-            title={folderMetaTitle ?? selectedFolder.title ?? undefined}
-          >
-            <span className="text-neutral-800">{folderMetaTitle ?? selectedFolder.title ?? '—'}</span>
-            <span className="ml-1.5 text-neutral-500">
-              · {t('imageCount', { count: rightImageItems.length })}
-              {rightImageItems.length > 0 && (
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex shrink-0 items-center gap-2">
+          {rightImageItems.length > 0 ? (
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                ref={selectAllCheckboxRef}
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary/20"
+                aria-label={allSelected ? t('deselectAll') : t('selectAll')}
+              />
+              <span className="text-xs font-medium text-neutral-600 whitespace-nowrap">
+                {allSelected ? t('deselectAll') : t('selectAll')}
                 <span className="ml-1 text-neutral-400">
-                  ({t('selectedCount', { count: selectedIds.size })})
+                  ({t('selectedCount', { count: selectedIds.size })} / {rightImageItems.length})
                 </span>
+              </span>
+            </label>
+          ) : selectedFolder ? (
+            <p className="text-xs font-medium text-neutral-600">
+              <span className="text-neutral-800">{folderMetaTitle ?? selectedFolder.title ?? '—'}</span>
+              <span className="ml-1.5 text-neutral-500">· {t('imageCount', { count: 0 })}</span>
+            </p>
+          ) : null}
+        </div>
+        {(chantierTitle || selectedFolder?.title) && (
+          <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2 text-center">
+            <p className="text-sm font-semibold text-primary truncate">
+              {chantierTitle && <span>{chantierTitle}</span>}
+              {chantierTitle && selectedFolder?.title && (
+                <span className="mx-2 text-primary/70">·</span>
               )}
-            </span>
-          </p>
-          {rightImageItems.length > 0 && (
-            <div className="flex shrink-0 gap-1">
-              <button
-                type="button"
-                onClick={selectAll}
-                className="text-xs font-medium text-neutral-500 hover:text-neutral-700 underline"
-              >
-                {t('selectAll')}
-              </button>
-              <span className="text-neutral-300">|</span>
-              <button
-                type="button"
-                onClick={deselectAll}
-                className="text-xs font-medium text-neutral-500 hover:text-neutral-700 underline"
-              >
-                {t('deselectAll')}
-              </button>
-            </div>
-          )}
+              {selectedFolder?.title && (
+                <span className="text-primary/90">{folderMetaTitle ?? selectedFolder.title}</span>
+              )}
+            </p>
+          </div>
+        )}
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setIsEditModalOpen(true)}
@@ -391,8 +411,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
               />
             </svg>
           </button>
-        </div>
-        <div className="flex shrink-0 gap-2">
+          <div className="flex gap-2">
           <button
             type="button"
             onClick={handleGenerateFolderWord}
@@ -421,6 +440,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
           >
             {folderPdfGenerating ? t('generatingPdf') : t('generateFolderPdf')}
           </button>
+          </div>
         </div>
       </div>
       <div>{renderRightContent()}</div>

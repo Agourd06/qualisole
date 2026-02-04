@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getStoredAuth } from '../../../utils/authStorage';
 import { updateGed } from '../services/ged.service';
 import { generateQualiphotoPdf } from '../utils/qualiphotoPdf';
+import { getMediaType } from '../utils/qualiphotoHelpers';
 import type { GedItem } from '../types/ged.types';
 
 function formatDisplayDate(iso: string): string {
@@ -112,23 +113,27 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
     setSaveError(null);
     try {
       let imageDataUrl: string | null = null;
-      try {
-        const { token } = getStoredAuth();
-        const res = await fetch(imageUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) {
-          const blob = await res.blob();
-          imageDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
+      const mediaType = getMediaType(ged.url);
+      if (mediaType === 'image') {
+        try {
+          const { token } = getStoredAuth();
+          const res = await fetch(imageUrl, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
+          if (res.ok) {
+            const blob = await res.blob();
+            imageDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          // PDF will be generated without image if fetch fails (e.g. CORS)
         }
-      } catch {
-        // PDF will be generated without image if fetch fails (e.g. CORS)
       }
+      // For video/audio, imageDataUrl stays null; PDF shows title/author/description only
       const photoDate = formatDisplayDate(ged.created_at);
       await generateQualiphotoPdf(
         {
@@ -151,6 +156,10 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
 
   const photoDate = formatDisplayDate(ged.created_at);
   const cardTitle = titleValue.trim() || t('defaultTitle');
+  const mediaType = getMediaType(ged.url);
+  const isImage = mediaType === 'image';
+  const isVideo = mediaType === 'video';
+  const isAudio = mediaType === 'audio';
 
   return (
     <Modal open={!!ged} onClose={onClose} titleId="qualiphoto-detail-title">
@@ -182,41 +191,85 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
         {/* Content: two columns on desktop, stacked on mobile */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex flex-col lg:flex-row">
-            {/* Left column – Image zone (40%) with author/date on image like main page */}
+            {/* Left column – Media zone (40%): image, video, or audio */}
             <div className="shrink-0 lg:w-[40%] lg:min-w-0 p-6">
               <div className="rounded-2xl bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-                <button
-                  type="button"
-                  onClick={() => setIsImageFullscreen(true)}
-                  className="group relative flex w-full aspect-[4/3] min-h-[200px] cursor-zoom-in items-center justify-center overflow-hidden rounded-xl bg-neutral-100 transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
-                  aria-label={t('enlargeImageAria')}
-                >
-                  <img
-                    src={imageUrl}
-                    alt={cardTitle}
-                    className="max-h-full max-w-full object-contain"
-                    draggable={false}
-                  />
-                  {/* Overlay: author & date only (title/chantier stay on main page cards) */}
-                  <div
-                    className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-3 px-5"
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className="inline-flex rounded-md bg-neutral-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700"
                     aria-hidden
                   >
-                    <div className="flex justify-between items-center gap-4">
-                      <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-white opacity-95 drop-shadow-lg">
-                        {ged.author || '—'}
-                      </span>
-                      <span className="shrink-0 tabular-nums text-[0.8125rem] font-medium text-white/90 drop-shadow-lg">
-                        {photoDate}
-                      </span>
+                    {isImage && t('mediaTypeImage')}
+                    {isVideo && t('mediaTypeVideo')}
+                    {isAudio && t('mediaTypeAudio')}
+                  </span>
+                </div>
+                <div className="group relative flex w-full aspect-[4/3] min-h-[200px] items-center justify-center overflow-hidden rounded-xl bg-neutral-100">
+                  {isImage && (
+                    <button
+                      type="button"
+                      onClick={() => setIsImageFullscreen(true)}
+                      className="absolute inset-0 flex cursor-zoom-in items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 rounded-xl"
+                      aria-label={t('enlargeImageAria')}
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={cardTitle}
+                        className="max-h-full max-w-full object-contain"
+                        draggable={false}
+                      />
+                    </button>
+                  )}
+                  {isVideo && (
+                    <video
+                      src={imageUrl}
+                      controls
+                      playsInline
+                      className="max-h-full max-w-full object-contain"
+                      aria-label={cardTitle}
+                    />
+                  )}
+                  {isAudio && (
+                    <div className="flex w-full flex-col items-center justify-center gap-4 p-6">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
+                        <svg className="h-10 w-10" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                        </svg>
+                      </div>
+                      <audio
+                        src={imageUrl}
+                        controls
+                        className="w-full max-w-sm"
+                        aria-label={cardTitle}
+                      />
+                      <div className="flex w-full max-w-sm justify-between gap-2 text-xs text-neutral-600">
+                        <span className="truncate">{ged.author || '—'}</span>
+                        <span className="shrink-0 tabular-nums">{photoDate}</span>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  )}
+                  {/* Overlay: author & date (for image/video; audio has its own layout) */}
+                  {!isAudio && (
+                    <div
+                      className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-3 px-5 pointer-events-none rounded-b-xl"
+                      aria-hidden
+                    >
+                      <div className="flex justify-between items-center gap-4">
+                        <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-white opacity-95 drop-shadow-lg">
+                          {ged.author || '—'}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-[0.8125rem] font-medium text-white/90 drop-shadow-lg">
+                          {photoDate}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Fullscreen image overlay */}
-            {isImageFullscreen && (
+            {/* Fullscreen image overlay (image only) */}
+            {isImage && isImageFullscreen && (
               <div
                 className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
                 role="dialog"

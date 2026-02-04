@@ -39,3 +39,18 @@ export async function moveGedToFolder(
     idsource: folderId,
   });
 }
+
+/** Empty GUID sent to backend to unassign (move to "all GEDs"). */
+const IDSOURCE_UNASSIGN = '00000000-0000-0000-0000-000000000000';
+
+/**
+ * Moves a GED out of a folder back to the main list (idsource = empty GUID).
+ * PUT /geds/:id?kind=... with body { idsource: '00000000-0000-0000-0000-000000000000' }.
+ */
+export async function moveGedToMain(payload: Pick<GedMovePayload, 'id' | 'kind'>): Promise<unknown> {
+  return updateGedIdsourceApi({
+    id: payload.id,
+    kind: payload.kind,
+    idsource: IDSOURCE_UNASSIGN,
+  });
+}

@@ -69,11 +69,13 @@ export const updateGed = async (params: UpdateGedParams): Promise<unknown> => {
 export interface UpdateGedIdsourceParams {
   id: string;
   kind: string;
-  idsource: string;
+  /** Folder id to assign, or null to unassign (move to "all GEDs"). */
+  idsource: string | null;
 }
 
 /**
  * PUT /geds/:id?kind=... with body { idsource }. Used for moving GED to a folder (drag-and-drop).
+ * Send idsource: null to unassign (move back to main list).
  */
 export const updateGedIdsource = async (
   params: UpdateGedIdsourceParams,

@@ -4,9 +4,9 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { Navbar } from '../../../components/layout/Navbar';
 import { useTranslation } from 'react-i18next';
 import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
-import { getGeds } from '../services/ged.service';
+import { getGeds, moveGedToMain } from '../services/ged.service';
 import type { GedMovePayload } from '../services/ged.service';
-import { buildImageUrl, isImageUrl } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, isMediaUrl, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { applyOrderToItems, filterFolderImageGeds } from '../utils/folderGedFilter';
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { QualiphotoDetailModal } from '../components/QualiphotoDetailModal';
@@ -25,7 +25,9 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
 import {
   QUALIPHOTO_KIND,
   IDSOURCE_MAIN,
+  IDSOURCE_EMPTY_GUID,
   QUALIPHOTO_ITEMS_PER_PAGE,
+  isUnassignedIdsource,
 } from '../constants';
 
 const GED_LIMIT = 500;
@@ -43,7 +45,7 @@ function toMovePayload(ged: GedItem): GedMovePayload {
 
 export const QualiphotoPage: React.FC = () => {
   const { t } = useTranslation('qualiphotoPage');
-  const { selectedFolder } = useNavbarFilters();
+  const { selectedFolder, selectedChantier } = useNavbarFilters();
 
   const [leftItems, setLeftItems] = useState<GedItem[]>([]);
   const [leftLoading, setLeftLoading] = useState(true);
@@ -54,28 +56,39 @@ export const QualiphotoPage: React.FC = () => {
   /** Bump after move+refetch so DragDropContext remounts and avoids stale draggable refs. */
   const [dndKey, setDndKey] = useState(0);
 
-  const refetchLeft = useCallback(async () => {
-    try {
-      const list = await getGeds({
+  /** Fetch unassigned GEDs for both idsource=0 and empty GUID, then merge and dedupe by id. */
+  const fetchUnassignedGeds = useCallback(async (): Promise<GedItem[]> => {
+    const [list0, listGuid] = await Promise.all([
+      getGeds({
         kind: QUALIPHOTO_KIND,
         idsource: IDSOURCE_MAIN,
         limit: GED_LIMIT,
-      });
+      }),
+      getGeds({
+        kind: QUALIPHOTO_KIND,
+        idsource: IDSOURCE_EMPTY_GUID,
+        limit: GED_LIMIT,
+      }),
+    ]);
+    const byId = new Map<string, GedItem>();
+    for (const item of [...list0, ...listGuid]) byId.set(item.id, item);
+    return Array.from(byId.values());
+  }, []);
+
+  const refetchLeft = useCallback(async () => {
+    try {
+      const list = await fetchUnassignedGeds();
       setLeftItems(list);
     } catch {
       // keep current on refetch error
     }
-  }, []);
+  }, [fetchUnassignedGeds]);
 
   useEffect(() => {
     let cancelled = false;
     setLeftLoading(true);
     setLeftError(null);
-    getGeds({
-      kind: QUALIPHOTO_KIND,
-      idsource: IDSOURCE_MAIN,
-      limit: GED_LIMIT,
-    })
+    fetchUnassignedGeds()
       .then((list) => {
         if (!cancelled) setLeftItems(list);
       })
@@ -90,10 +103,16 @@ export const QualiphotoPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchUnassignedGeds]);
 
   const leftImageItems = useMemo(
-    () => leftItems.filter((item) => item.url && isImageUrl(item.url)),
+    () =>
+      leftItems.filter(
+        (item) =>
+          item.url &&
+          isMediaUrl(item.url) &&
+          isUnassignedIdsource(item.idsource),
+      ),
     [leftItems],
   );
 
@@ -162,7 +181,27 @@ export const QualiphotoPage: React.FC = () => {
         return;
       }
 
-      if (source.droppableId === DROPPABLE_RIGHT) return;
+      if (
+        source.droppableId === DROPPABLE_RIGHT &&
+        destination.droppableId === DROPPABLE_LEFT
+      ) {
+        if (isAssigning) return;
+
+        const ged = orderedFolderItems.find((i) => String(i.id) === String(draggableId));
+        if (!ged) return;
+
+        setIsAssigning(true);
+        try {
+          await moveGedToMain({ id: String(ged.id), kind: ged.kind });
+          await handleMoveSuccess();
+        } catch {
+          // moveError could be shown; refetch anyway
+          await handleMoveSuccess();
+        } finally {
+          setIsAssigning(false);
+        }
+        return;
+      }
 
       if (
         source.droppableId === DROPPABLE_LEFT &&
@@ -190,7 +229,9 @@ export const QualiphotoPage: React.FC = () => {
       leftImageItems,
       moveGedToFolder,
       orderedFolderImageIds,
+      orderedFolderItems,
       setFolderImageOrder,
+      handleMoveSuccess,
     ],
   );
 
@@ -226,13 +267,6 @@ export const QualiphotoPage: React.FC = () => {
         </div>
       );
     }
-    if (leftImageItems.length === 0) {
-      return (
-        <div className="rounded-2xl bg-white/50 px-8 py-16 text-center text-sm text-neutral-500 backdrop-blur-sm">
-          {t('noImages')}
-        </div>
-      );
-    }
     return (
       <Droppable droppableId={DROPPABLE_LEFT}>
         {(provided, snapshot) => (
@@ -244,7 +278,13 @@ export const QualiphotoPage: React.FC = () => {
             } ${isAnyPending ? 'opacity-60 pointer-events-none' : ''}`}
             aria-label={t('galleryAria')}
           >
-            {leftPaginated.map((ged, index) => (
+            {leftImageItems.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 py-12 text-center text-sm text-neutral-500 min-h-[180px]">
+                <p>{t('noImages')}</p>
+                <p className="mt-1 font-medium text-neutral-600">{t('dropHereToUnassign')}</p>
+              </div>
+            ) : (
+            leftPaginated.map((ged, index) => (
               <Draggable
                 key={ged.id}
                 draggableId={ged.id}
@@ -279,11 +319,14 @@ export const QualiphotoPage: React.FC = () => {
                       chantier={ged.chantier ?? ged.categorie}
                       createdAt={ged.created_at}
                       onClick={() => setSelectedGed(ged)}
+                      isVideo={isVideoUrl(ged.url)}
+                      isAudio={isAudioUrl(ged.url)}
                     />
                   </div>
                 )}
               </Draggable>
-            ))}
+            ))
+            )}
             {provided.placeholder}
           </section>
         )}
@@ -351,6 +394,7 @@ export const QualiphotoPage: React.FC = () => {
           {/* Right: chantier/folder panel (only GEDs with idsource = selected folder id) */}
           <QualiphotoFolderPanel
             selectedFolder={selectedFolder}
+            chantierTitle={selectedChantier?.title ?? null}
             orderedFolderItems={orderedFolderItems}
             folderLoading={folderLoading}
             folderError={folderError}

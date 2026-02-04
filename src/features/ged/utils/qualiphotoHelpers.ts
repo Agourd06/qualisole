@@ -10,6 +10,33 @@ export function isImageUrl(url: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(url);
 }
 
+/** Video extensions shown in qualiphoto galleries (e.g. .mov, .mp4). */
+export function isVideoUrl(url: string): boolean {
+  return /\.(mov|mp4|webm|ogg)(\?|$)/i.test(url);
+}
+
+/** Audio extensions (e.g. .m4a, .mp3). */
+export function isAudioUrl(url: string): boolean {
+  return /\.(m4a|mp3|wav|ogg|aac|webm)(\?|$)/i.test(url);
+}
+
+/** Image or video URL – item is shown in left/right galleries. */
+export function isImageOrVideoUrl(url: string): boolean {
+  return isImageUrl(url) || isVideoUrl(url);
+}
+
+/** Image, video, or audio – item is shown in GED lists and modals. */
+export function isMediaUrl(url: string): boolean {
+  return isImageUrl(url) || isVideoUrl(url) || isAudioUrl(url);
+}
+
+/** 'image' | 'video' | 'audio' for a GED url. */
+export function getMediaType(url: string): 'image' | 'video' | 'audio' {
+  if (isVideoUrl(url)) return 'video';
+  if (isAudioUrl(url)) return 'audio';
+  return 'image';
+}
+
 export function toLocalDateString(iso: string): string {
   const d = new Date(iso);
   const y = d.getFullYear();

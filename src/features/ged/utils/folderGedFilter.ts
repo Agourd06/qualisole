@@ -1,5 +1,5 @@
 import type { GedItem } from '../types/ged.types';
-import { isImageUrl } from './qualiphotoHelpers';
+import { isMediaUrl } from './qualiphotoHelpers';
 
 /**
  * Applies a saved order to a list of items. Items in orderedIds appear in that order;
@@ -49,6 +49,6 @@ export function filterFolderImageGeds(
   folderId: string | null,
 ): GedItem[] {
   return filterGedsByFolderId(items, folderId).filter(
-    (item) => item.url && isImageUrl(item.url),
+    (item) => item.url && isMediaUrl(item.url),
   );
 }

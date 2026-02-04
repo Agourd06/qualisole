@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { buildImageUrl, formatDisplayDate } from '../utils/qualiphotoHelpers';
+import { useTranslation } from 'react-i18next';
+import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import type { GedItem } from '../types/ged.types';
+
+const MEDIA_BADGE_CLASS =
+  'absolute left-2 top-2 z-[1] rounded-md px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide shadow-sm';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -25,9 +29,70 @@ export interface QualiphotoCardProps {
   onDragStart?: (e: React.DragEvent, ged: GedItem) => void;
   /** Layout variant: default overlay (full-image) or split (image left, content right). */
   layout?: 'overlay' | 'split';
+  /** When true, render a video element instead of img (e.g. .mov, .mp4). */
+  isVideo?: boolean;
+  /** When true, render an audio placeholder (no thumbnail). */
+  isAudio?: boolean;
 }
 
 /** Professional photo card: 16:9 aspect, overlay with metadata. Optional drag support. */
+function MediaThumbnail({
+  src,
+  alt,
+  isVideo,
+  isAudio,
+  className,
+  videoLabel = 'Video',
+  audioLabel = 'Audio',
+}: {
+  src: string;
+  alt: string;
+  isVideo?: boolean;
+  isAudio?: boolean;
+  className?: string;
+  videoLabel?: string;
+  audioLabel?: string;
+}) {
+  if (isAudio) {
+    return (
+      <div
+        className={`${className} flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 text-primary`}
+        aria-label={alt}
+      >
+        <svg className="h-12 w-12 shrink-0 opacity-90" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+        </svg>
+        <span className="mt-1 rounded-md bg-primary/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+          {audioLabel}
+        </span>
+      </div>
+    );
+  }
+  if (isVideo) {
+    return (
+      <div className="relative h-full w-full">
+        <video
+          src={src}
+          className={className}
+          preload="metadata"
+          playsInline
+          muted
+          aria-label={alt}
+        />
+        <span className={`${MEDIA_BADGE_CLASS} bg-primary text-white`}>{videoLabel}</span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      loading="lazy"
+    />
+  );
+}
+
 export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
   imageUrl,
   title,
@@ -39,8 +104,12 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
   ged,
   onDragStart,
   layout = 'overlay',
+  isVideo = false,
+  isAudio = false,
 }) => {
+  const { t } = useTranslation('qualiphotoPage');
   const isDraggable = Boolean(ged && onDragStart);
+  const mediaClassName = 'h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]';
 
   if (layout === 'split') {
     const hasDescription = Boolean(description && description.trim().length > 0);
@@ -61,20 +130,23 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
         aria-label={title}
       >
         <div className="relative w-[50%] min-w-[45%] max-w-[52%] h-44 sm:h-48 md:h-52">
-          <img
+          <MediaThumbnail
             src={imageUrl}
             alt={title}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
-            loading="lazy"
+            isVideo={isVideo}
+            isAudio={isAudio}
+            className={mediaClassName}
+            videoLabel={t('mediaTypeVideo')}
+            audioLabel={t('mediaTypeAudio')}
           />
         </div>
         <div className="flex flex-1 flex-col justify-between gap-2 p-4 overflow-hidden">
           <div className="flex items-center justify-between gap-3 text-[0.75rem] text-neutral-600">
-            <span className="min-w-0 truncate font-semibold">
-              {author || '—'}
-            </span>
             <span className="shrink-0 tabular-nums font-medium">
               {formatDisplayDate(createdAt)}
+            </span>
+            <span className="min-w-0 truncate font-semibold">
+              {author || '—'}
             </span>
           </div>
           <div className="space-y-1 overflow-hidden">
@@ -113,11 +185,14 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
     aria-label={title}
   >
     <div className="relative aspect-[16/9] w-full overflow-hidden">
-      <img
+      <MediaThumbnail
         src={imageUrl}
         alt={title}
-        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
-        loading="lazy"
+        isVideo={isVideo}
+        isAudio={isAudio}
+        className={mediaClassName}
+        videoLabel={t('mediaTypeVideo')}
+        audioLabel={t('mediaTypeAudio')}
       />
       <div
         className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-12 pb-3 px-5"
@@ -241,6 +316,8 @@ export const QualiphotoGallerySection: React.FC<QualiphotoGallerySectionProps> =
             onClick={() => onCardClick(ged)}
             ged={draggable ? ged : undefined}
             onDragStart={draggable ? onDragStart : undefined}
+            isVideo={isVideoUrl(ged.url)}
+            isAudio={isAudioUrl(ged.url)}
           />
         ))}
       </section>
