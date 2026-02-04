@@ -220,7 +220,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                     {isAudio && t('mediaTypeAudio')}
                   </span>
                 </div>
-                <div className="group relative flex w-full aspect-[4/3] min-h-[200px] items-center justify-center overflow-hidden rounded-xl bg-neutral-100">
+                <div className="group relative flex w-full aspect-[4/3] min-h-[200px] items-center justify-center overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
                   {isImage && (
                     <button
                       type="button"
@@ -237,13 +237,19 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                     </button>
                   )}
                   {isVideo && (
-                    <video
-                      src={imageUrl}
-                      controls
-                      playsInline
-                      className="max-h-full max-w-full object-contain"
-                      aria-label={cardTitle}
-                    />
+                    <div className="flex h-full w-full flex-col gap-2">
+                      <video
+                        src={imageUrl}
+                        controls
+                        playsInline
+                        className="h-full w-full rounded-xl object-contain bg-neutral-900 shadow-md ring-1 ring-black/5"
+                        aria-label={cardTitle}
+                      />
+                      <div className="flex justify-between items-center gap-2 px-1 text-xs text-neutral-600">
+                        <span className="min-w-0 truncate font-medium">{ged.author || '—'}</span>
+                        <span className="shrink-0 tabular-nums">{photoDate}</span>
+                      </div>
+                    </div>
                   )}
                   {isAudio && (
                     <div className="flex w-full flex-col items-center justify-center gap-4 p-6">
@@ -264,8 +270,8 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                       </div>
                     </div>
                   )}
-                  {/* Overlay: author & date (for image/video; audio has its own layout) */}
-                  {!isAudio && (
+                  {/* Overlay: author & date (image only; video has its own overlay above controls) */}
+                  {isImage && (
                     <div
                       className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-3 px-5 pointer-events-none rounded-b-xl"
                       aria-hidden

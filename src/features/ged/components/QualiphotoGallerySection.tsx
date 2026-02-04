@@ -70,10 +70,10 @@ function MediaThumbnail({
   }
   if (isVideo) {
     return (
-      <div className="relative h-full w-full">
+      <div className="relative h-full w-full overflow-hidden rounded-lg">
         <video
           src={src}
-          className={className}
+          className={`${className} rounded-lg`}
           preload="metadata"
           playsInline
           muted
