@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
 import { getGeds, moveGedToMain } from '../services/ged.service';
 import type { GedMovePayload } from '../services/ged.service';
-import { buildImageUrl, isMediaUrl, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, isImageOrVideoUrl, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { applyOrderToItems, filterFolderImageGeds } from '../utils/folderGedFilter';
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { QualiphotoDetailModal } from '../components/QualiphotoDetailModal';
@@ -110,7 +110,7 @@ export const QualiphotoPage: React.FC = () => {
       leftItems.filter(
         (item) =>
           item.url &&
-          isMediaUrl(item.url) &&
+          isImageOrVideoUrl(item.url) &&
           isUnassignedIdsource(item.idsource),
       ),
     [leftItems],

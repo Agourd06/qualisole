@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Modal } from '../../../components/ui/Modal';
 import { RichTextEditor } from '../../../components/inputs/RichTextEditor';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,8 @@ import { getStoredAuth } from '../../../utils/authStorage';
 import { updateGed } from '../services/ged.service';
 import { generateQualiphotoPdf } from '../utils/qualiphotoPdf';
 import { getMediaType } from '../utils/qualiphotoHelpers';
+import { useAssociatedGeds } from '../hooks/useAssociatedGeds';
+import { AssociatedGedsList } from './AssociatedGedsList';
 import type { GedItem } from '../types/ged.types';
 
 function formatDisplayDate(iso: string): string {
@@ -151,6 +153,20 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
       setPdfGenerating(false);
     }
   };
+
+  const { items: associatedGeds, loading: associatedLoading, error: associatedError } =
+    useAssociatedGeds(ged?.id ?? null, ged?.kind ?? '');
+
+  const associatedOnlyThisGed = useMemo(() => {
+    if (!ged) return [];
+    const selectedIdNorm = String(ged.id).toLowerCase().trim();
+    return associatedGeds.filter(
+      (item) =>
+        item.idsource != null &&
+        item.idsource !== '' &&
+        String(item.idsource).toLowerCase().trim() === selectedIdNorm,
+    );
+  }, [ged, associatedGeds]);
 
   if (!ged) return null;
 
@@ -347,6 +363,14 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               </section>
             </div>
           </div>
+
+          {/* Associated GEDs (idsource = this GED's id) – below main content, above footer */}
+          <AssociatedGedsList
+            items={associatedOnlyThisGed}
+            loading={associatedLoading}
+            error={associatedError}
+            title={t('associatedGedsTitle')}
+          />
         </div>
 
         {/* Fixed bottom – Save & Reset */}

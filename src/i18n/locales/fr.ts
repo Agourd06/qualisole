@@ -68,6 +68,8 @@ export default {
     mediaTypeImage: 'Image',
     mediaTypeVideo: 'Vidéo',
     mediaTypeAudio: 'Audio',
+    associatedGedsTitle: 'GED associés',
+    loadingAssociated: 'Chargement…',
     defaultTitle: 'Situation avant inspection',
     subtitle: 'Analyse visuelle générée par IA',
     closeAria: 'Fermer',
