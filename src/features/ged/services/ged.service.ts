@@ -26,6 +26,18 @@ export const updateGed = (params: Parameters<typeof updateGedApi>[0]): Promise<u
   updateGedApi(params);
 
 /**
+ * Sets a GED's idsource (e.g. folder id or gedparallel row id).
+ * PUT /geds/:id?kind=... with body { idsource }.
+ */
+export async function setGedIdsource(params: {
+  id: string;
+  kind: string;
+  idsource: string | null;
+}): Promise<unknown> {
+  return updateGedIdsourceApi(params);
+}
+
+/**
  * Moves a GED to a folder by updating its idsource.
  * PUT /geds/:id?kind=... with body { idsource: folderId }.
  */
@@ -33,7 +45,7 @@ export async function moveGedToFolder(
   payload: GedMovePayload,
   folderId: string,
 ): Promise<unknown> {
-  return updateGedIdsourceApi({
+  return setGedIdsource({
     id: payload.id,
     kind: payload.kind,
     idsource: folderId,
@@ -48,7 +60,7 @@ const IDSOURCE_UNASSIGN = '00000000-0000-0000-0000-000000000000';
  * PUT /geds/:id?kind=... with body { idsource: '00000000-0000-0000-0000-000000000000' }.
  */
 export async function moveGedToMain(payload: Pick<GedMovePayload, 'id' | 'kind'>): Promise<unknown> {
-  return updateGedIdsourceApi({
+  return setGedIdsource({
     id: payload.id,
     kind: payload.kind,
     idsource: IDSOURCE_UNASSIGN,

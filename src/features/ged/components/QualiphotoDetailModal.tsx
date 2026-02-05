@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Modal } from '../../../components/ui/Modal';
 import { RichTextEditor } from '../../../components/inputs/RichTextEditor';
 import { useTranslation } from 'react-i18next';
@@ -28,8 +28,8 @@ export interface QualiphotoDetailModalProps {
   ged: GedItem | null;
   imageUrl: string;
   onClose: () => void;
-  /** Called after a successful save so the parent can refresh the list. */
-  onSaved?: () => void;
+  /** Called after a successful save; pass updated fields so parent can update selected GED and refresh the list. */
+  onSaved?: (updates: Partial<Pick<GedItem, 'title' | 'description'>>) => void;
 }
 
 /**
@@ -53,6 +53,8 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  /** Skip the next sync after save so we don't overwrite the form (avoids rollback with RichTextEditor). */
+  const skipNextSyncRef = useRef(false);
 
   const syncFromGed = useCallback((item: GedItem | null) => {
     if (!item) return;
@@ -65,6 +67,10 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
   }, []);
 
   useEffect(() => {
+    if (skipNextSyncRef.current && ged) {
+      skipNextSyncRef.current = false;
+      return;
+    }
     syncFromGed(ged);
   }, [ged, syncFromGed]);
 
@@ -95,7 +101,11 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
         ...(hasTitle && { title: titleValue }),
         ...(hasDescription && { description: descriptionValue }),
       });
-      onSaved?.();
+      onSaved?.({
+        title: hasTitle ? titleValue.trim() : ged.title ?? undefined,
+        description: hasDescription ? (descriptionValue ?? '') : ged.description ?? undefined,
+      });
+      skipNextSyncRef.current = true;
       setTitleEditEnabled(false);
       setDescriptionEditEnabled(false);
     } catch (err) {

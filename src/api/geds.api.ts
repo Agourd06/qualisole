@@ -74,8 +74,8 @@ export interface UpdateGedIdsourceParams {
 }
 
 /**
- * PUT /geds/:id?kind=... with body { idsource }. Used for moving GED to a folder (drag-and-drop).
- * Send idsource: null to unassign (move back to main list).
+ * PUT /geds/:id?kind=qualiphoto&idsource=... – update GED idsource (folder id or gedparallel row id).
+ * Sends kind and idsource as query params to match backend.
  */
 export const updateGedIdsource = async (
   params: UpdateGedIdsourceParams,
@@ -83,7 +83,12 @@ export const updateGedIdsource = async (
   const { data } = await axiosClient.put<unknown>(
     `${BASE_URL}/${params.id}`,
     { idsource: params.idsource },
-    { params: { kind: params.kind } },
+    {
+      params: {
+        kind: params.kind,
+        idsource: params.idsource ?? '',
+      },
+    },
   );
   return data;
 };

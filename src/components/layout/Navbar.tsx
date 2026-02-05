@@ -10,6 +10,7 @@ import { LogoutIcon } from '../icons/LogoutIcon';
 
 const NAV_TABS = [
   { to: '/qualiphoto', labelKey: 'constat' as const },
+  { to: '/suivi', labelKey: 'suivi' as const },
   { to: '/dashboard', labelKey: 'dashboard' as const },
 ] as const;
 

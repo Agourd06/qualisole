@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from '../features/auth/pages/Login';
 import { DashboardPage } from '../features/dashboard/pages/Dashboard';
 import { QualiphotoPage } from '../features/ged/pages/QualiphotoPage';
+import { SuiviPage } from '../features/ged/pages/SuiviPage';
 import { RequireAuth } from './RequireAuth';
 
 export const AppRoutes: React.FC = () => {
@@ -14,6 +15,7 @@ export const AppRoutes: React.FC = () => {
         <Route element={<RequireAuth />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/qualiphoto" element={<QualiphotoPage />} />
+          <Route path="/suivi" element={<SuiviPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

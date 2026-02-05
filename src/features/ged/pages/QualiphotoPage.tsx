@@ -137,9 +137,13 @@ export const QualiphotoPage: React.FC = () => {
     [orderedFolderItems, folderId],
   );
 
-  const handleMoveSuccess = useCallback(async () => {
-    await Promise.all([refetchLeft(), refetchFolderList()]);
-    setDndKey((k) => k + 1);
+  /** Defer refetch so @hello-pangea/dnd can finish cleanup first (avoids "Unable to find draggable" warning). */
+  const handleMoveSuccess = useCallback(() => {
+    setTimeout(() => {
+      refetchLeft();
+      refetchFolderList();
+      setDndKey((k) => k + 1);
+    }, 0);
   }, [refetchLeft, refetchFolderList]);
 
   const {
@@ -151,10 +155,16 @@ export const QualiphotoPage: React.FC = () => {
     onSuccess: handleMoveSuccess,
   });
 
-  const handleSaved = useCallback(() => {
-    refetchLeft();
-    refetchFolderList();
-  }, [refetchLeft, refetchFolderList]);
+  const handleSaved = useCallback(
+    (updates?: Partial<Pick<GedItem, 'title' | 'description'>>) => {
+      if (updates && selectedGed) {
+        setSelectedGed({ ...selectedGed, ...updates });
+      }
+      refetchLeft();
+      refetchFolderList();
+    },
+    [selectedGed, refetchLeft, refetchFolderList],
+  );
 
   const handleDragEnd = useCallback(
     async (result: DropResult) => {
@@ -193,10 +203,9 @@ export const QualiphotoPage: React.FC = () => {
         setIsAssigning(true);
         try {
           await moveGedToMain({ id: String(ged.id), kind: ged.kind });
-          await handleMoveSuccess();
+          handleMoveSuccess();
         } catch {
-          // moveError could be shown; refetch anyway
-          await handleMoveSuccess();
+          handleMoveSuccess();
         } finally {
           setIsAssigning(false);
         }
