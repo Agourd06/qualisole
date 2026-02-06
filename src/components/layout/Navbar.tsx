@@ -11,7 +11,8 @@ import { LogoutIcon } from '../icons/LogoutIcon';
 const NAV_TABS = [
   { to: '/qualiphoto', labelKey: 'constat' as const },
   { to: '/suivi', labelKey: 'suivi' as const },
-  { to: '/dashboard', labelKey: 'dashboard' as const },
+  { to: '/sequence', labelKey: 'sequence' as const },
+  { to: '/chantier', labelKey: 'chantier' as const },
 ] as const;
 
 export const Navbar: React.FC = () => {
@@ -58,7 +59,7 @@ export const Navbar: React.FC = () => {
               className={({ isActive }) =>
                 `${navLinkClass} ${isActive ? navLinkActive : navLinkInactive}`
               }
-              end={to === '/dashboard'}
+              end={to === '/sequence' || to === '/chantier'}
             >
               {t(labelKey)}
             </NavLink>

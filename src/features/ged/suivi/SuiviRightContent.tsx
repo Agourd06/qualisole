@@ -7,7 +7,7 @@ import { ParalleleRow } from './ParalleleRow';
 import { SuiviExportToolbar } from './SuiviExportToolbar';
 
 export interface SuiviRightContentProps {
-  selectedFolder: { id: string; title?: string } | null;
+  selectedFolder: { id: string; title?: string; description?: string | null; conclusion?: string | null } | null;
   folderId: string | null;
   paralleleItems: GedParalleleItem[];
   paralleleLoading: boolean;
@@ -59,6 +59,8 @@ export const SuiviRightContent: React.FC<SuiviRightContentProps> = ({
         <SuiviExportToolbar
           paralleleItems={paralleleItems}
           folderTitle={selectedFolder?.title ?? ''}
+          folderIntroduction={selectedFolder?.description ?? undefined}
+          folderConclusion={selectedFolder?.conclusion ?? undefined}
           disabled={isAnyPending}
         />
       )}

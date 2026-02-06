@@ -22,6 +22,11 @@ function loadImageDimensions(dataUrl: string): Promise<{ w: number; h: number }>
   });
 }
 
+export interface SuiviExportPdfOptions {
+  introduction?: string | null;
+  conclusion?: string | null;
+}
+
 /**
  * Generate PDF for Suivi "Avant only" – reuses folder table layout.
  */
@@ -29,8 +34,9 @@ export async function generateSuiviAvantPdf(
   folderTitle: string,
   rows: FolderGedRow[],
   filename?: string,
+  options?: SuiviExportPdfOptions,
 ): Promise<void> {
-  await generateFolderGedsTablePdf(folderTitle, rows, filename);
+  await generateFolderGedsTablePdf(folderTitle, rows, filename, options);
 }
 
 /**
@@ -40,8 +46,9 @@ export async function generateSuiviApresPdf(
   folderTitle: string,
   rows: FolderGedRow[],
   filename?: string,
+  options?: SuiviExportPdfOptions,
 ): Promise<void> {
-  await generateFolderGedsTablePdf(folderTitle, rows, filename);
+  await generateFolderGedsTablePdf(folderTitle, rows, filename, options);
 }
 
 const BOTH_PDF = {
@@ -75,11 +82,13 @@ function getPageSize(doc: jsPDF): { width: number; height: number } {
 
 /**
  * Generate PDF for Suivi "Both" (Avant | Après): table with two columns per row.
+ * Layout per cell: image left | date + author, title, description right.
  */
 export async function generateSuiviBothPdf(
   folderTitle: string,
   pairedRows: SuiviPairRow[],
   filename?: string,
+  options?: SuiviExportPdfOptions,
 ): Promise<void> {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -105,6 +114,19 @@ export async function generateSuiviBothPdf(
   doc.text(safeTitle, (pageWidth - titleW) / 2, y + 6);
   y += BOTH_PDF.titleSpacingBelowMm;
 
+  const introduction = options?.introduction?.trim() ?? '';
+  if (introduction) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRAY);
+    const introLines = doc.splitTextToSize(stripHtml(introduction), contentWidth);
+    for (let i = 0; i < introLines.length; i++) {
+      doc.text(introLines[i], margin, y + 3.5);
+      y += 4;
+    }
+    y += 6;
+  }
+
   const drawPairRow = async (
     pair: SuiviPairRow,
     rowY: number,
@@ -116,14 +138,16 @@ export async function generateSuiviBothPdf(
       _imgW: number,
       textW: number,
     ): Promise<number> => {
-      let bottom = rowY + BOTH_PDF.cellPaddingMm;
+      const textX = x + imageColWidth + BOTH_PDF.cellPaddingMm;
+      let rightY = rowY + BOTH_PDF.cellPaddingMm;
       if (!cell) {
         doc.setFontSize(BOTH_PDF.descFontSize);
         doc.setTextColor(...GRAY);
-        doc.text('—', x + BOTH_PDF.cellPaddingMm, bottom + 6);
-        return bottom + 12;
+        doc.text('—', x + BOTH_PDF.cellPaddingMm, rightY + 6);
+        return rightY + 12;
       }
 
+      let imageBottom = rowY + BOTH_PDF.cellPaddingMm;
       if (cell.imageDataUrl) {
         try {
           const { w: iw, h: ih } = await loadImageDimensions(cell.imageDataUrl);
@@ -140,37 +164,36 @@ export async function generateSuiviBothPdf(
             cell.imageDataUrl,
             fmt,
             imgX,
-            bottom,
+            rowY + BOTH_PDF.cellPaddingMm,
             fitW,
             fitH,
             undefined,
             'NONE',
           );
-          bottom += fitH + BOTH_PDF.metaGapMm;
+          imageBottom = rowY + BOTH_PDF.cellPaddingMm + fitH;
         } catch {
           doc.setFontSize(BOTH_PDF.descFontSize);
           doc.setTextColor(...GRAY);
-          doc.text('—', x + BOTH_PDF.cellPaddingMm, bottom + 6);
-          bottom += 12;
+          doc.text('—', x + BOTH_PDF.cellPaddingMm, rightY + 6);
+          imageBottom = rightY + 12;
         }
       }
 
       doc.setFontSize(BOTH_PDF.metaFontSize);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...GRAY);
-      if (cell.publishedDate || cell.author) {
-        const meta = [cell.publishedDate, cell.author].filter(Boolean).join(' · ');
-        doc.text(meta, x + BOTH_PDF.cellPaddingMm, bottom + 4);
-        bottom += 6;
-      }
+      const metaParts = [cell.publishedDate, cell.author].filter(Boolean);
+      const meta = metaParts.length ? metaParts.join('  ') : '—';
+      doc.text(meta, textX, rightY + 4);
+      rightY += 6;
 
       doc.setFontSize(BOTH_PDF.titleFontSizeRow);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...BLACK);
       const titleText = (cell.title || '—').trim().slice(0, 60);
       const titleLines = doc.splitTextToSize(titleText, textW);
-      doc.text(titleLines[0] ?? '—', x + imageColWidth + BOTH_PDF.cellPaddingMm, bottom + 4);
-      bottom += 6;
+      doc.text(titleLines[0] ?? '—', textX, rightY + 4);
+      rightY += 6;
 
       doc.setFontSize(BOTH_PDF.descFontSize);
       doc.setFont('helvetica', 'normal');
@@ -178,10 +201,10 @@ export async function generateSuiviBothPdf(
       const descText = stripHtml(cell.description || '').trim().slice(0, 300);
       const descLines = doc.splitTextToSize(descText, textW);
       for (let i = 0; i < Math.min(descLines.length, 4); i++) {
-        doc.text(descLines[i], x + imageColWidth + BOTH_PDF.cellPaddingMm, bottom + 4);
-        bottom += BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
+        doc.text(descLines[i], textX, rightY + 4);
+        rightY += BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
       }
-      return bottom + BOTH_PDF.cellPaddingMm;
+      return Math.max(imageBottom, rightY) + BOTH_PDF.cellPaddingMm;
     };
 
     const xLeft = margin;
@@ -236,6 +259,27 @@ export async function generateSuiviBothPdf(
       doc.setLineWidth(0.15);
       doc.line(margin, y, pageWidth - margin, y);
       y += 3;
+    }
+  }
+
+  const conclusion = options?.conclusion?.trim() ?? '';
+  if (conclusion) {
+    y += 8;
+    if (y > maxY - 25) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setDrawColor(...BOTH_PDF.separatorColor);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRAY);
+    const conclLines = doc.splitTextToSize(stripHtml(conclusion), contentWidth);
+    for (let i = 0; i < conclLines.length; i++) {
+      doc.text(conclLines[i], margin, y + 3.5);
+      y += 4;
     }
   }
 

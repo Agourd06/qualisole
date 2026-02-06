@@ -411,6 +411,7 @@ export const QualiphotoPage: React.FC = () => {
             clearMoveError={clearMoveError}
             isAssigning={isAssigning}
             onSelectGed={setSelectedGed}
+            onRefetchFolder={refetchFolderList}
           />
           </div>
           {isAssigning && (

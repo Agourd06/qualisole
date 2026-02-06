@@ -14,6 +14,11 @@ import {
 import type { FolderGedRow } from './qualiphotoPdf';
 import type { SuiviPairRow } from './suiviExportPdf';
 
+export interface SuiviExportWordOptions {
+  introduction?: string | null;
+  conclusion?: string | null;
+}
+
 function stripHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -40,8 +45,9 @@ export async function generateSuiviAvantWord(
   folderTitle: string,
   rows: FolderGedRow[],
   filename?: string,
+  options?: SuiviExportWordOptions,
 ): Promise<void> {
-  await generateFolderGedsTableWord(folderTitle, rows, filename);
+  await generateFolderGedsTableWord(folderTitle, rows, filename, options);
 }
 
 /**
@@ -51,69 +57,90 @@ export async function generateSuiviApresWord(
   folderTitle: string,
   rows: FolderGedRow[],
   filename?: string,
+  options?: SuiviExportWordOptions,
 ): Promise<void> {
-  await generateFolderGedsTableWord(folderTitle, rows, filename);
+  await generateFolderGedsTableWord(folderTitle, rows, filename, options);
 }
 
-function cellParagraphsForRow(row: FolderGedRow | null): Paragraph[] {
-  const paras: Paragraph[] = [];
+/** Build one cell as table: image left | date+author, title, description right. */
+function cellTableForRow(row: FolderGedRow | null): Table {
+  const imageParagraphs: Paragraph[] = [];
+  const textParagraphs: Paragraph[] = [];
   if (!row) {
-    paras.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
-    return paras;
-  }
-  if (row.imageDataUrl) {
-    try {
-      const { data, type } = dataUrlToArrayBuffer(row.imageDataUrl);
-      paras.push(
-        new Paragraph({
-          children: [
-            new ImageRun({
-              type,
-              data,
-              transformation: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
-            }),
-          ],
-          spacing: { after: 60 },
-        }),
-      );
-    } catch {
-      paras.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
+    textParagraphs.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
+  } else {
+    if (row.imageDataUrl) {
+      try {
+        const { data, type } = dataUrlToArrayBuffer(row.imageDataUrl);
+        imageParagraphs.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                type,
+                data,
+                transformation: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
+              }),
+            ],
+            spacing: { after: 60 },
+          }),
+        );
+      } catch {
+        imageParagraphs.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
+      }
     }
+    const metaParts = [row.publishedDate, row.author].filter(Boolean);
+    const metaLine = metaParts.length ? metaParts.join('  ') : '—';
+    textParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: metaLine, size: 14, color: '6B7280' })],
+        spacing: { after: 40 },
+      }),
+    );
+    textParagraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: (row.title || '—').trim(), bold: true, size: 20 })],
+        spacing: { after: 60 },
+      }),
+    );
+    textParagraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: stripHtml(row.description || '').slice(0, 800) || '—',
+            size: 18,
+            color: '374151',
+          }),
+        ],
+      }),
+    );
   }
-  const metaLine = [row.publishedDate, row.author].filter(Boolean).join(' · ') || '—';
-  paras.push(
-    new Paragraph({
-      children: [new TextRun({ text: metaLine, size: 14, color: '6B7280' })],
-      spacing: { after: 40 },
-    }),
-  );
-  paras.push(
-    new Paragraph({
-      children: [new TextRun({ text: (row.title || '—').trim(), bold: true, size: 20 })],
-      spacing: { after: 60 },
-    }),
-  );
-  paras.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: stripHtml(row.description || '').slice(0, 800) || '—',
-          size: 18,
-          color: '374151',
-        }),
-      ],
-    }),
-  );
-  return paras;
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [40, 60],
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            children: imageParagraphs.length ? imageParagraphs : [new Paragraph({ children: [new TextRun({ text: '—', italics: true })] })],
+          }),
+          new TableCell({
+            children: textParagraphs,
+          }),
+        ],
+      }),
+    ],
+  });
 }
 
 /**
  * Generate Word for Suivi "Both" (Avant | Après): table with two columns per row.
+ * Layout per cell: image left | date + author, title, description right.
  */
 export async function generateSuiviBothWord(
   folderTitle: string,
   pairedRows: SuiviPairRow[],
   filename?: string,
+  options?: SuiviExportWordOptions,
 ): Promise<void> {
   const children: (Paragraph | Table)[] = [];
 
@@ -125,6 +152,16 @@ export async function generateSuiviBothWord(
       spacing: { after: 320 },
     }),
   );
+
+  const introduction = options?.introduction?.trim() ?? '';
+  if (introduction) {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: stripHtml(introduction), size: 20, color: '404040' })],
+        spacing: { after: 240 },
+      }),
+    );
+  }
 
   const tableRows: TableRow[] = [
     new TableRow({
@@ -147,19 +184,17 @@ export async function generateSuiviBothWord(
   ];
 
   for (const pair of pairedRows) {
-    const leftChildren = cellParagraphsForRow(pair.avant);
-    const rightChildren = cellParagraphsForRow(pair.apres);
     tableRows.push(
       new TableRow({
         children: [
           new TableCell({
-            children: leftChildren,
+            children: [cellTableForRow(pair.avant)],
             borders: {
               bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E5E5' },
             },
           }),
           new TableCell({
-            children: rightChildren,
+            children: [cellTableForRow(pair.apres)],
             borders: {
               bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E5E5' },
             },
@@ -179,6 +214,16 @@ export async function generateSuiviBothWord(
       },
     }),
   );
+
+  const conclusion = options?.conclusion?.trim() ?? '';
+  if (conclusion) {
+    children.push(
+      new Paragraph({ spacing: { before: 400 } }),
+      new Paragraph({
+        children: [new TextRun({ text: stripHtml(conclusion), size: 20, color: '6B7280' })],
+      }),
+    );
+  }
 
   const doc = new Document({
     sections: [{ properties: {}, children }],

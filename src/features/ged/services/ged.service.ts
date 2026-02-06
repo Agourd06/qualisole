@@ -3,6 +3,7 @@ import {
   getGeds as getGedsApi,
   updateGed as updateGedApi,
   updateGedIdsource as updateGedIdsourceApi,
+  updateGedChantier as updateGedChantierApi,
 } from '../../../api/geds.api';
 import type {
   GedByIdResponse,
@@ -65,4 +66,17 @@ export async function moveGedToMain(payload: Pick<GedMovePayload, 'id' | 'kind'>
     kind: payload.kind,
     idsource: IDSOURCE_UNASSIGN,
   });
+}
+
+/**
+ * Assigns a GED to a chantier (project): sets chantier name and chantierId on the GED.
+ * PUT /geds/:id?kind=... with body { chantier_id, chantier }.
+ */
+export async function setGedChantier(params: {
+  id: string;
+  kind: string;
+  chantierId: string;
+  chantier: string;
+}): Promise<unknown> {
+  return updateGedChantierApi(params);
 }

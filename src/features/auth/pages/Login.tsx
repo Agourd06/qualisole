@@ -31,7 +31,7 @@ export const LoginPage: React.FC = () => {
   useEffect(() => {
     const { token } = getStoredAuth();
     if (token) {
-      navigate('/dashboard', { replace: true });
+      navigate('/sequence', { replace: true });
     }
   }, [navigate]);
 
@@ -62,7 +62,7 @@ export const LoginPage: React.FC = () => {
       setIsSubmitting(true);
       setApiError(null);
       await login(credentials);
-      navigate('/dashboard', { replace: true });
+      navigate('/sequence', { replace: true });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Une erreur s'est produite lors de la connexion.";

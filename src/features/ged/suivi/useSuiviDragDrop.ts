@@ -99,8 +99,9 @@ export function useSuiviDragDrop({
         return;
       }
 
-      // Right → left: fetch GEDs linked to this row (idsource=rowId), find the dragged GED by url/title, then update its idsource to empty GUID.
-      // Backend removes the GED from gedparallel; for slot 1 we unassign both GEDs (clean both id sources).
+      // Right → left: only PUT geds/:id?kind=qualiphoto&idsource=00000000-0000-0000-0000-000000000000.
+      // Backend removes the GED from gedparallel when idsource is empty GUID — we do nothing else.
+      // Get GED id from GEDs API (idsource=rowId), find by url/title; Slot 2: unassign that GED only. Slot 1: unassign both GEDs (clean both id sources).
       if (slotSource && destination.droppableId === DROPPABLE_GEDS) {
         const row = paralleleItems.find((r) => r.id === slotSource.rowId);
         setSlotUpdateInProgress(true);
@@ -117,21 +118,19 @@ export function useSuiviDragDrop({
                 await moveGedToMain({ id: ged.id, kind: QUALIPHOTO_KIND });
               }
             } else {
-              // Slot 1 (Avant): Avant GED may have idsource=folderId (not rowId) — try row GEDs first, then folder GEDs, then row.idsource1.
-              let avantGedId: string | null = findGedInSlot(gedsInRow, row, 1)?.id ?? null;
-              if (!avantGedId && folderId) {
+              // Slot 1 (Avant): Avant GED may have idsource=folderId — try row GEDs first, then folder GEDs.
+              let ged1 = findGedInSlot(gedsInRow, row, 1);
+              if (!ged1 && folderId) {
                 const folderGeds = await getGeds({
                   kind: QUALIPHOTO_KIND,
                   idsource: folderId,
                   limit: 100,
                 });
-                avantGedId = findGedInSlot(folderGeds, row, 1)?.id ?? row.idsource1 ?? null;
-              } else if (!avantGedId) {
-                avantGedId = row.idsource1 ?? null;
+                ged1 = findGedInSlot(folderGeds, row, 1);
               }
               const ged2 = findGedInSlot(gedsInRow, row, 2);
-              if (avantGedId) await moveGedToMain({ id: avantGedId, kind: QUALIPHOTO_KIND });
-              if (ged2 && ged2.id !== avantGedId) {
+              if (ged1) await moveGedToMain({ id: ged1.id, kind: QUALIPHOTO_KIND });
+              if (ged2 && ged2.id !== ged1?.id) {
                 await moveGedToMain({ id: ged2.id, kind: QUALIPHOTO_KIND });
               }
             }

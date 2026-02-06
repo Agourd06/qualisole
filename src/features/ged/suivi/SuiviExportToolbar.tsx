@@ -6,6 +6,8 @@ import type { GedParalleleItem } from '../types/gedParallele.types';
 export interface SuiviExportToolbarProps {
   paralleleItems: GedParalleleItem[];
   folderTitle: string;
+  folderIntroduction?: string | null;
+  folderConclusion?: string | null;
   disabled?: boolean;
 }
 
@@ -38,10 +40,10 @@ function ExportButtonGroup({
   align?: Align;
 }) {
   const alignClass =
-    align === 'left' ? 'items-start' : align === 'right' ? 'items-end' : 'items-center';
+    align === 'left' ? 'justify-start' : align === 'right' ? 'justify-end' : 'justify-center';
   return (
-    <div className={`flex flex-col gap-0.5 ${alignClass}`}>
-      <span className="text-[0.65rem] font-medium uppercase tracking-wider text-neutral-500">
+    <div className={`flex items-center gap-2 ${alignClass}`}>
+      <span className="text-[0.65rem] font-medium uppercase tracking-wider text-neutral-500 whitespace-nowrap">
         {label}
       </span>
       <div className="flex items-center gap-1.5">
@@ -49,19 +51,29 @@ function ExportButtonGroup({
           type="button"
           onClick={onPdf}
           disabled={disabled || pdfDisabled || pdfLoading}
-          className="rounded border border-neutral-200 bg-white px-2 py-0.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-50 hover:border-neutral-300 disabled:pointer-events-none disabled:opacity-50"
+          className="flex h-7 w-7 items-center justify-center rounded border border-neutral-200 bg-white transition-colors hover:bg-red-50 hover:border-red-200 disabled:pointer-events-none disabled:opacity-50"
           aria-label={pdfLabel}
+          title={pdfLabel}
         >
-          {pdfLoading ? '…' : 'PDF'}
+          {pdfLoading ? (
+            <span className="text-[10px]">…</span>
+          ) : (
+            <img src="/pdf.png" alt="" className="h-4 w-4 object-contain" aria-hidden />
+          )}
         </button>
         <button
           type="button"
           onClick={onWord}
           disabled={disabled || wordDisabled || wordLoading}
-          className="rounded border border-neutral-200 bg-white px-2 py-0.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-50 hover:border-neutral-300 disabled:pointer-events-none disabled:opacity-50"
+          className="flex h-7 w-7 items-center justify-center rounded border border-neutral-200 bg-white transition-colors hover:bg-blue-50 hover:border-blue-200 disabled:pointer-events-none disabled:opacity-50"
           aria-label={wordLabel}
+          title={wordLabel}
         >
-          {wordLoading ? '…' : 'Word'}
+          {wordLoading ? (
+            <span className="text-[10px]">…</span>
+          ) : (
+            <img src="/word.png" alt="" className="h-4 w-4 object-contain" aria-hidden />
+          )}
         </button>
       </div>
     </div>
@@ -71,6 +83,8 @@ function ExportButtonGroup({
 export const SuiviExportToolbar: React.FC<SuiviExportToolbarProps> = ({
   paralleleItems,
   folderTitle,
+  folderIntroduction,
+  folderConclusion,
   disabled = false,
 }) => {
   const { t } = useTranslation('qualiphotoPage');
@@ -90,17 +104,17 @@ export const SuiviExportToolbar: React.FC<SuiviExportToolbarProps> = ({
     exportWordAvant,
     exportWordBoth,
     exportWordApres,
-  } = useSuiviExport({ paralleleItems, folderTitle });
+  } = useSuiviExport({ paralleleItems, folderTitle, folderIntroduction, folderConclusion });
 
   return (
     <div
-      className="flex w-full items-end justify-between gap-4 py-1"
+      className="flex w-full items-center justify-between gap-4 py-1"
       role="toolbar"
       aria-label={t('suiviExportToolbarAria', 'Export Suivi: PDF and Word')}
     >
       <ExportButtonGroup
         align="left"
-        label={t('suiviExportAvantOnly', 'Avant only')}
+        label={t('suiviExportAvantOnly', 'Avant')}
         pdfLabel={t('suiviExportAvantPdfAria', 'Export Avant as PDF')}
         wordLabel={t('suiviExportAvantWordAria', 'Export Avant as Word')}
         onPdf={exportPdfAvant}
@@ -126,7 +140,7 @@ export const SuiviExportToolbar: React.FC<SuiviExportToolbarProps> = ({
       />
       <ExportButtonGroup
         align="right"
-        label={t('suiviExportApresOnly', 'Après only')}
+        label={t('suiviExportApresOnly', 'Après')}
         pdfLabel={t('suiviExportApresPdfAria', 'Export Après as PDF')}
         wordLabel={t('suiviExportApresWordAria', 'Export Après as Word')}
         onPdf={exportPdfApres}

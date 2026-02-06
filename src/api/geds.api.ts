@@ -25,10 +25,13 @@ export interface GetGedsParams {
   idsource: string | number;
   /** Optional: request more items if the backend supports pagination/limit (default may be 3 or 10). */
   limit?: number;
+  /** Optional: filter GEDs by chantier (project) id. When set, backend may return GEDs for this chantier. */
+  chantierId?: string;
 }
 
 /**
  * GET /geds?kind=qualiphoto&idsource=0&limit=500
+ * Optional: &chantier_id=xxx to filter by chantier.
  */
 export const getGeds = async (params: GetGedsParams): Promise<GedListResponse> => {
   const requestParams: Record<string, string | number> = {
@@ -36,6 +39,7 @@ export const getGeds = async (params: GetGedsParams): Promise<GedListResponse> =
     idsource: params.idsource,
   };
   if (params.limit != null) requestParams.limit = params.limit;
+  if (params.chantierId != null && params.chantierId !== '') requestParams.chantier_id = params.chantierId;
   const { data } = await axiosClient.get<GedListResponse>(BASE_URL, {
     params: requestParams,
   });
@@ -89,6 +93,28 @@ export const updateGedIdsource = async (
         idsource: params.idsource ?? '',
       },
     },
+  );
+  return data;
+};
+
+export interface UpdateGedChantierParams {
+  id: string;
+  kind: string;
+  chantierId: string;
+  chantier: string;
+}
+
+/**
+ * PUT /geds/:id?kind=... – update GED chantier and chantierId (assign GED to a chantier).
+ * Body: chantier_id (backend snake_case) and chantier (name).
+ */
+export const updateGedChantier = async (
+  params: UpdateGedChantierParams,
+): Promise<unknown> => {
+  const { data } = await axiosClient.put<unknown>(
+    `${BASE_URL}/${params.id}`,
+    { chantier_id: params.chantierId, chantier: params.chantier },
+    { params: { kind: params.kind } },
   );
   return data;
 };

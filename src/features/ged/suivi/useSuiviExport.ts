@@ -53,6 +53,8 @@ function toFolderGedRow(
 export interface UseSuiviExportOptions {
   paralleleItems: GedParalleleItem[];
   folderTitle: string;
+  folderIntroduction?: string | null;
+  folderConclusion?: string | null;
 }
 
 export interface UseSuiviExportResult {
@@ -76,10 +78,19 @@ export interface UseSuiviExportResult {
   exportWordApres: () => Promise<void>;
 }
 
+const exportOptions = (introduction?: string | null, conclusion?: string | null) =>
+  (introduction || conclusion) ? { introduction: introduction ?? undefined, conclusion: conclusion ?? undefined } : undefined;
+
 export function useSuiviExport({
   paralleleItems,
   folderTitle,
+  folderIntroduction,
+  folderConclusion,
 }: UseSuiviExportOptions): UseSuiviExportResult {
+  const options = useMemo(
+    () => exportOptions(folderIntroduction, folderConclusion),
+    [folderIntroduction, folderConclusion],
+  );
   const [pdfAvantLoading, setPdfAvantLoading] = useState(false);
   const [pdfBothLoading, setPdfBothLoading] = useState(false);
   const [pdfApresLoading, setPdfApresLoading] = useState(false);
@@ -190,11 +201,12 @@ export function useSuiviExport({
         `${baseTitle} - Avant`,
         rows,
         `suivi-avant-${safeName}-${Date.now()}.pdf`,
+        options,
       );
     } finally {
       setPdfAvantLoading(false);
     }
-  }, [avantCount, pdfAvantLoading, buildAvantRows, baseTitle, safeName]);
+  }, [avantCount, pdfAvantLoading, buildAvantRows, baseTitle, safeName, options]);
 
   const exportPdfApres = useCallback(async () => {
     if (apresCount === 0 || pdfApresLoading) return;
@@ -205,11 +217,12 @@ export function useSuiviExport({
         `${baseTitle} - Après`,
         rows,
         `suivi-apres-${safeName}-${Date.now()}.pdf`,
+        options,
       );
     } finally {
       setPdfApresLoading(false);
     }
-  }, [apresCount, pdfApresLoading, buildApresRows, baseTitle, safeName]);
+  }, [apresCount, pdfApresLoading, buildApresRows, baseTitle, safeName, options]);
 
   const exportPdfBoth = useCallback(async () => {
     if (bothCount === 0 || pdfBothLoading) return;
@@ -220,11 +233,12 @@ export function useSuiviExport({
         `${baseTitle} - Avant / Après`,
         pairs,
         `suivi-both-${safeName}-${Date.now()}.pdf`,
+        options,
       );
     } finally {
       setPdfBothLoading(false);
     }
-  }, [bothCount, pdfBothLoading, buildBothRows, baseTitle, safeName]);
+  }, [bothCount, pdfBothLoading, buildBothRows, baseTitle, safeName, options]);
 
   const exportWordAvant = useCallback(async () => {
     if (avantCount === 0 || wordAvantLoading) return;
@@ -235,11 +249,12 @@ export function useSuiviExport({
         `${baseTitle} - Avant`,
         rows,
         `suivi-avant-${safeName}-${Date.now()}.docx`,
+        options,
       );
     } finally {
       setWordAvantLoading(false);
     }
-  }, [avantCount, wordAvantLoading, buildAvantRows, baseTitle, safeName]);
+  }, [avantCount, wordAvantLoading, buildAvantRows, baseTitle, safeName, options]);
 
   const exportWordApres = useCallback(async () => {
     if (apresCount === 0 || wordApresLoading) return;
@@ -250,11 +265,12 @@ export function useSuiviExport({
         `${baseTitle} - Après`,
         rows,
         `suivi-apres-${safeName}-${Date.now()}.docx`,
+        options,
       );
     } finally {
       setWordApresLoading(false);
     }
-  }, [apresCount, wordApresLoading, buildApresRows, baseTitle, safeName]);
+  }, [apresCount, wordApresLoading, buildApresRows, baseTitle, safeName, options]);
 
   const exportWordBoth = useCallback(async () => {
     if (bothCount === 0 || wordBothLoading) return;
@@ -265,11 +281,12 @@ export function useSuiviExport({
         `${baseTitle} - Avant / Après`,
         pairs,
         `suivi-both-${safeName}-${Date.now()}.docx`,
+        options,
       );
     } finally {
       setWordBothLoading(false);
     }
-  }, [bothCount, wordBothLoading, buildBothRows, baseTitle, safeName]);
+  }, [bothCount, wordBothLoading, buildBothRows, baseTitle, safeName, options]);
 
   return {
     avantCount,

@@ -15,7 +15,6 @@ export interface ParalleleRowProps {
 export const ParalleleRow: React.FC<ParalleleRowProps> = ({ item, rowIndex, folderId, onSlotClick }) => {
   const { t } = useTranslation('qualiphotoPage');
 
-  const apresHasContent = Boolean(item.url2);
   const ged1 = rowSlotToGedItem(item, 1, folderId);
   const ged2 = rowSlotToGedItem(item, 2, folderId);
 
@@ -31,7 +30,7 @@ export const ParalleleRow: React.FC<ParalleleRowProps> = ({ item, rowIndex, fold
           url={item.url1}
           kind={item.kind1}
           slotDroppableId={slotDroppableId}
-          showDragHandle={!apresHasContent}
+          showDragHandle={true}
           ged={ged1}
           onSlotClick={onSlotClick}
         />

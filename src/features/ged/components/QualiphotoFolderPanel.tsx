@@ -31,6 +31,8 @@ export interface QualiphotoFolderPanelProps {
   clearMoveError: () => void;
   isAssigning: boolean;
   onSelectGed: (ged: GedItem) => void;
+  /** Refetch folder GEDs only (right panel). */
+  onRefetchFolder?: () => void | Promise<void>;
 }
 
 /**
@@ -47,6 +49,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   clearMoveError,
   isAssigning,
   onSelectGed,
+  onRefetchFolder,
 }) => {
   const { t } = useTranslation('qualiphotoPage');
 
@@ -377,16 +380,32 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
           ) : null}
         </div>
         {(chantierTitle || selectedFolder?.title) && (
-          <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2 text-center">
-            <p className="text-sm font-semibold text-primary truncate">
-              {chantierTitle && <span>{chantierTitle}</span>}
-              {chantierTitle && selectedFolder?.title && (
-                <span className="mx-2 text-primary/70">·</span>
-              )}
-              {selectedFolder?.title && (
-                <span className="text-primary/90">{folderMetaTitle ?? selectedFolder.title}</span>
-              )}
-            </p>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2 text-center">
+              <p className="text-sm font-semibold text-primary truncate">
+                {chantierTitle && <span>{chantierTitle}</span>}
+                {chantierTitle && selectedFolder?.title && (
+                  <span className="mx-2 text-primary/70">·</span>
+                )}
+                {selectedFolder?.title && (
+                  <span className="text-primary/90">{folderMetaTitle ?? selectedFolder.title}</span>
+                )}
+              </p>
+            </div>
+            {onRefetchFolder && (
+              <button
+                type="button"
+                onClick={() => onRefetchFolder()}
+                disabled={folderLoading}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary disabled:opacity-50"
+                aria-label={t('refreshFolderGeds')}
+                title={t('refreshFolderGeds')}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            )}
           </div>
         )}
         <div className="flex shrink-0 items-center gap-2">
@@ -416,7 +435,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
             type="button"
             onClick={handleGenerateFolderWord}
             disabled={folderWordGenerating || selectedForPdf.length === 0}
-            className="rounded border border-[rgb(0,82,155)] bg-white px-2 py-1 text-xs font-medium text-[rgb(0,82,155)] hover:bg-[rgb(0,82,155)]/10 disabled:opacity-50"
+            className="flex h-8 items-center gap-1.5 rounded border border-neutral-200 bg-white px-2 py-1 transition-colors hover:bg-blue-50 hover:border-blue-200 disabled:opacity-50"
             aria-label={t('generateFolderWord')}
             title={
               selectedForPdf.length === 0
@@ -424,13 +443,14 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                 : undefined
             }
           >
+            <img src="/word.png" alt="" className="h-4 w-4 object-contain" aria-hidden />
             {folderWordGenerating ? t('generatingWord') : t('generateFolderWord')}
           </button>
           <button
             type="button"
             onClick={handleGenerateFolderPdf}
             disabled={folderPdfGenerating || selectedForPdf.length === 0}
-            className="rounded bg-[rgb(0,82,155)] px-2 py-1 text-xs font-medium text-white hover:bg-[rgb(0,70,135)] disabled:opacity-50"
+            className="flex h-8 items-center gap-1.5 rounded border border-neutral-200 bg-white px-2 py-1 transition-colors hover:bg-red-50 hover:border-red-200 disabled:opacity-50"
             aria-label={t('generateFolderPdf')}
             title={
               selectedForPdf.length === 0
@@ -438,6 +458,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                 : undefined
             }
           >
+            <img src="/pdf.png" alt="" className="h-4 w-4 object-contain" aria-hidden />
             {folderPdfGenerating ? t('generatingPdf') : t('generateFolderPdf')}
           </button>
           </div>

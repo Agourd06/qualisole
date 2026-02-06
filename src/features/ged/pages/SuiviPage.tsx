@@ -166,16 +166,30 @@ export const SuiviPage: React.FC = () => {
               <p className="mb-2 text-xs text-neutral-500">{t('moving')}</p>
             )}
             {(selectedChantier || selectedFolder) && (
-              <div className="mb-4 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2.5 text-center">
-                <p className="text-sm font-semibold text-primary truncate">
-                  {selectedChantier?.title}
-                  {selectedChantier?.title && selectedFolder?.title && (
-                    <span className="mx-2 text-primary/70">·</span>
-                  )}
-                  {selectedFolder?.title && (
-                    <span className="text-primary/90">{selectedFolder.title}</span>
-                  )}
-                </p>
+              <div className="mb-4 flex items-center gap-2">
+                <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2.5 text-center">
+                  <p className="text-sm font-semibold text-primary truncate">
+                    {selectedChantier?.title}
+                    {selectedChantier?.title && selectedFolder?.title && (
+                      <span className="mx-2 text-primary/70">·</span>
+                    )}
+                    {selectedFolder?.title && (
+                      <span className="text-primary/90">{selectedFolder.title}</span>
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => refetchParallele()}
+                  disabled={paralleleLoading}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary disabled:opacity-50"
+                  aria-label={t('refreshFolderGeds')}
+                  title={t('refreshFolderGeds')}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
             )}
             <SuiviRightContent
