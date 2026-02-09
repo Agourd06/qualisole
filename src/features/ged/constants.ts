@@ -19,3 +19,6 @@ export const QUALIPHOTO_ITEMS_PER_PAGE = 10;
 
 /** MIME type for drag-and-drop GED payload (left → right). */
 export const GED_DRAG_MIME = 'application/x-qualisol-ged';
+
+/** Default status_id for new qualiphoto GEDs (same for all). Not shown in upload form. */
+export const QUALIPHOTO_DEFAULT_STATUS_ID = '83b48801-b726-11f0-9ae2-0cc47aa8a1a0';

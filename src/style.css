@@ -50,3 +50,9 @@
   background-color: var(--color-tertiary) !important;
   color: var(--color-primary) !important;
 }
+
+/* Map: custom GED image markers (no default pin background) */
+.leaflet-div-icon.map-ged-div-icon {
+  border: none;
+  background: transparent;
+}

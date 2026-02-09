@@ -1,6 +1,7 @@
 import axiosClient from './axiosClient';
 import type {
   GedByIdResponse,
+  GedItem,
   GedListResponse,
   GetGedByIdParams,
 } from '../features/ged/types/ged.types';
@@ -116,5 +117,24 @@ export const updateGedChantier = async (
     { chantier_id: params.chantierId, chantier: params.chantier },
     { params: { kind: params.kind } },
   );
+  return data;
+};
+
+export interface CreateGedParams {
+  kind: string;
+  /** Folder id or empty GUID for unassigned. */
+  idsource: string;
+  /** FormData with all fields + file (and optional voice). Do not set Content-Type; axios sends multipart. */
+  formData: FormData;
+}
+
+/**
+ * POST /geds?kind=qualiphoto&idsource=... with multipart/form-data.
+ * Returns the created GED. FormData must include scalar fields and file (image); optional voice.
+ */
+export const createGed = async (params: CreateGedParams): Promise<GedItem> => {
+  const { data } = await axiosClient.post<GedItem>(BASE_URL, params.formData, {
+    params: { kind: params.kind, idsource: params.idsource },
+  });
   return data;
 };

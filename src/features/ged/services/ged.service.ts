@@ -1,4 +1,5 @@
 import {
+  createGed as createGedApi,
   getGedById as getGedByIdApi,
   getGeds as getGedsApi,
   updateGed as updateGedApi,
@@ -11,6 +12,8 @@ import type {
   GetGedByIdParams,
 } from '../types/ged.types';
 import type { GedItem } from '../types/ged.types';
+import { QUALIPHOTO_KIND, QUALIPHOTO_DEFAULT_STATUS_ID } from '../constants';
+import type { GeoPosition } from '../hooks/useGeolocation';
 
 /** Minimal payload for moving a GED to a folder (drag-and-drop). */
 export type GedMovePayload = Pick<GedItem, 'id' | 'kind' | 'title' | 'description'>;
@@ -79,4 +82,67 @@ export async function setGedChantier(params: {
   chantier: string;
 }): Promise<unknown> {
   return updateGedChantierApi(params);
+}
+
+export interface CreateGedFormInput {
+  /** From connected user. */
+  author: string;
+  idauthor: string;
+  company_id: string;
+  /** From geolocation when available; when null, empty strings are sent for position fields. */
+  position: GeoPosition | null;
+  /** Folder id or empty GUID for unassigned. */
+  idsource: string;
+  chantier: string;
+  title: string;
+  description: string;
+  imageFile: File;
+  voiceFile?: File | null;
+}
+
+/**
+ * Builds FormData for POST /geds?kind=qualiphoto&idsource=...
+ * Auto-fields: author, idauthor, company_id, status_id, latitude, longitude, altitude, accuracy, altitudeAccuracy, kind, position, mode.
+ * User-facing fields: title, description, chantier. Files: file (image), voice (optional).
+ */
+const EMPTY_POSITION: GeoPosition = {
+  latitude: '',
+  longitude: '',
+  altitude: '',
+  accuracy: '',
+  altitudeAccuracy: '',
+};
+
+export function buildCreateGedFormData(input: CreateGedFormInput): FormData {
+  const pos = input.position ?? EMPTY_POSITION;
+  const fd = new FormData();
+  fd.append('kind', QUALIPHOTO_KIND);
+  fd.append('idsource', input.idsource);
+  fd.append('author', input.author);
+  fd.append('idauthor', input.idauthor);
+  fd.append('company_id', input.company_id);
+  fd.append('status_id', QUALIPHOTO_DEFAULT_STATUS_ID);
+  fd.append('latitude', pos.latitude);
+  fd.append('longitude', pos.longitude);
+  fd.append('altitude', pos.altitude);
+  fd.append('accuracy', pos.accuracy);
+  fd.append('altitudeAccuracy', pos.altitudeAccuracy);
+  fd.append('position', '0');
+  fd.append('chantier', input.chantier);
+  fd.append('title', input.title);
+  fd.append('description', input.description);
+  fd.append('mode', 'capture');
+  fd.append('file', input.imageFile);
+  if (input.voiceFile) {
+    fd.append('voice', input.voiceFile);
+  }
+  return fd;
+}
+
+/**
+ * Creates a new qualiphoto GED via POST /geds?kind=qualiphoto&idsource=...
+ * Returns the created GED. Caller must build FormData (e.g. via buildCreateGedFormData).
+ */
+export async function createGed(idsource: string, formData: FormData): Promise<GedItem> {
+  return createGedApi({ kind: QUALIPHOTO_KIND, idsource, formData });
 }

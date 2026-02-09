@@ -11,6 +11,7 @@ import { applyOrderToItems, filterFolderImageGeds } from '../utils/folderGedFilt
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { QualiphotoDetailModal } from '../components/QualiphotoDetailModal';
 import { QualiphotoFolderPanel } from '../components/QualiphotoFolderPanel';
+import { UploadGedModal } from '../components/UploadGedModal';
 import { useQualiphotoByFolder } from '../hooks/useQualiphotoByFolder';
 import { useFolderImageOrder } from '../hooks/useFolderImageOrder';
 import { useMoveGedToFolder } from '../hooks/useMoveGedToFolder';
@@ -53,6 +54,7 @@ export const QualiphotoPage: React.FC = () => {
   const [selectedGed, setSelectedGed] = useState<GedItem | null>(null);
   const [leftPage, setLeftPage] = useState(1);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   /** Bump after move+refetch so DragDropContext remounts and avoids stale draggable refs. */
   const [dndKey, setDndKey] = useState(0);
 
@@ -165,6 +167,12 @@ export const QualiphotoPage: React.FC = () => {
     },
     [selectedGed, refetchLeft, refetchFolderList],
   );
+
+  const handleUploadSuccess = useCallback(() => {
+    refetchLeft();
+    refetchFolderList();
+    setDndKey((k) => k + 1);
+  }, [refetchLeft, refetchFolderList]);
 
   const handleDragEnd = useCallback(
     async (result: DropResult) => {
@@ -390,6 +398,15 @@ export const QualiphotoPage: React.FC = () => {
             style={{ width: '33vw' }}
             aria-label={t('galleryAria')}
           >
+            <div className="flex items-center justify-end gap-4 mb-4">
+              <button
+                type="button"
+                onClick={() => setUploadModalOpen(true)}
+                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                {t('uploadGed')}
+              </button>
+            </div>
             <div>{renderLeftContent()}</div>
             {!leftLoading && !leftError && leftImageItems.length > 0 &&
               renderPagination(leftPage, leftTotalPages, setLeftPage)}
@@ -454,6 +471,13 @@ export const QualiphotoPage: React.FC = () => {
         imageUrl={selectedGed ? buildImageUrl(selectedGed) : ''}
         onClose={() => setSelectedGed(null)}
         onSaved={handleSaved}
+      />
+      <UploadGedModal
+        open={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onSuccess={handleUploadSuccess}
+        selectedFolderId={folderId}
+        defaultChantier={selectedChantier?.title ?? ''}
       />
     </div>
   );
