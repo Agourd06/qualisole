@@ -4,6 +4,7 @@ export default {
     suivi: 'Suivi',
     sequence: 'Sequence',
     chantier: 'Chantier',
+    map: 'Map',
     logoutAria: 'Log out',
   },
   filters: {
@@ -145,5 +146,12 @@ export default {
     selectChantier: 'Select a chantier from the top filter.',
     assignError: 'Failed to assign. Try again.',
     assigning: 'Assigning…',
+  },
+  mapPage: {
+    loading: 'Loading…',
+    loadError: 'Error while loading.',
+    noGedsWithCoords: 'No GEDs with coordinates at the moment.',
+    mapAria: 'Map of GED locations',
+    noTitle: 'Untitled',
   },
 } as const;

@@ -4,6 +4,7 @@ export default {
     suivi: 'Suivi',
     sequence: 'Séquence',
     chantier: 'Chantier',
+    map: 'Carte',
     logoutAria: 'Se déconnecter',
   },
   filters: {
@@ -145,5 +146,12 @@ export default {
     selectChantier: 'Sélectionnez un chantier dans le filtre en haut.',
     assignError: 'Échec de l’assignation. Réessayez.',
     assigning: 'Assignation…',
+  },
+  mapPage: {
+    loading: 'Chargement…',
+    loadError: 'Erreur lors du chargement.',
+    noGedsWithCoords: 'Aucune GED avec coordonnées pour le moment.',
+    mapAria: 'Carte des localisations GED',
+    noTitle: 'Sans titre',
   },
 } as const;

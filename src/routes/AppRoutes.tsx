@@ -5,6 +5,7 @@ import { SequencePage } from '../features/sequence/pages/SequencePage';
 import { QualiphotoPage } from '../features/ged/pages/QualiphotoPage';
 import { SuiviPage } from '../features/ged/pages/SuiviPage';
 import { ChantierPage } from '../features/chantier/pages/ChantierPage';
+import { MapPage } from '../features/map/pages/MapPage';
 import { RequireAuth } from './RequireAuth';
 
 export const AppRoutes: React.FC = () => {
@@ -18,6 +19,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="/qualiphoto" element={<QualiphotoPage />} />
           <Route path="/suivi" element={<SuiviPage />} />
           <Route path="/chantier" element={<ChantierPage />} />
+          <Route path="/map" element={<MapPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/sequence" replace />} />

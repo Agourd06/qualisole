@@ -22,7 +22,7 @@ i18n.use(initReactI18next).init({
   lng: getStoredLanguage(),
   fallbackLng: 'fr',
   defaultNS: 'qualiphotoPage',
-  ns: ['nav', 'qualiphotoPage', 'qualiphotoModal', 'auth', 'chantierPage'],
+  ns: ['nav', 'qualiphotoPage', 'qualiphotoModal', 'auth', 'chantierPage', 'mapPage'],
   interpolation: {
     escapeValue: false,
   },

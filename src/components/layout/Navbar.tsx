@@ -13,6 +13,7 @@ const NAV_TABS = [
   { to: '/suivi', labelKey: 'suivi' as const },
   { to: '/sequence', labelKey: 'sequence' as const },
   { to: '/chantier', labelKey: 'chantier' as const },
+  { to: '/map', labelKey: 'map' as const },
 ] as const;
 
 export const Navbar: React.FC = () => {
@@ -59,7 +60,7 @@ export const Navbar: React.FC = () => {
               className={({ isActive }) =>
                 `${navLinkClass} ${isActive ? navLinkActive : navLinkInactive}`
               }
-              end={to === '/sequence' || to === '/chantier'}
+              end={to === '/sequence' || to === '/chantier' || to === '/map'}
             >
               {t(labelKey)}
             </NavLink>
