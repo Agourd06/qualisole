@@ -2,8 +2,12 @@ import { UPLOADS_BASE } from '../../../utils/constants';
 import type { GedItem } from '../types/ged.types';
 
 export function buildImageUrl(ged: GedItem): string {
-  const path = ged.url.startsWith('/') ? ged.url : `/${ged.url}`;
-  return `${UPLOADS_BASE.replace(/\/$/, '')}${path}`;
+  const url = ged?.url;
+  if (!url || typeof url !== 'string') return '';
+  const path = url.startsWith('/') ? url : `/${url}`;
+  const base = UPLOADS_BASE?.replace?.(/\/$/, '') ?? '';
+  if (!base) return '';
+  return `${base}${path}`;
 }
 
 export function isImageUrl(url: string): boolean {

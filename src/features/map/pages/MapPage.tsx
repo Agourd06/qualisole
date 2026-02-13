@@ -52,6 +52,7 @@ const MapGroupMarker = React.memo(function MapGroupMarker({
 
   return (
     <Marker
+      key={`ged-${group.positionKey}-${firstGed.id}`}
       position={[group.coords.lat, group.coords.lng]}
       icon={icon}
       eventHandlers={{

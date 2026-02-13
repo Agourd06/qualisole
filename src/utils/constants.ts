@@ -4,8 +4,9 @@
  */
 
 /** API base URL (with /api). From .env or VITE_API_BASE_URL; fallback: stage backend. */
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined);
+export const API_BASE_URL: string =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  'https://stage.back.muntadaa.online/api';
 
 /** Base URL for uploaded files (no /api). Used to build full image URLs. */
 export const UPLOADS_BASE = (() => {

@@ -103,3 +103,12 @@ If the app is not at the root:
 3. In **Nginx**: set `root` (or `alias`) so that `/app/` serves the same `dist/` content and `try_files` still falls back to `index.html` for `/app/*`.
 
 Then rebuild and redeploy.
+
+## Map and Arabic text in preview / production
+
+If the map looks correct locally but place names (including Arabic) appear garbled in preview or production:
+
+1. **Encoding** – The app uses UTF-8. `index.html` includes `<meta charset="UTF-8">` and `Content-Type` meta. Ensure your **host** serves the page with `Content-Type: text/html; charset=utf-8` (Nginx, Vercel, Netlify, etc. usually do by default; custom servers may need to set this).
+2. **Same browser** – Compare in the same browser (e.g. Chrome) locally and in preview to rule out font/rendering differences.
+3. **Tiles** – Map labels come from OpenStreetMap tile images. If tiles load (check Network tab for `tile.openstreetmap.org`), they should be identical in dev and preview. Hard-refresh (Ctrl+Shift+R) in preview to avoid stale cache.
+4. **No image processing** – If you use a CDN or proxy that reprocesses images (resize, re-encode), ensure it does not alter tile PNGs or their URLs.
