@@ -171,7 +171,7 @@ export const AssociatedGedsList: React.FC<AssociatedGedsListProps> = ({
                       <button
                         type="button"
                         onClick={() => setExpandedVideoId(ged.id)}
-                        className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary"
                         aria-label={t('showVideoAria')}
                       >
                         <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -191,7 +191,7 @@ export const AssociatedGedsList: React.FC<AssociatedGedsListProps> = ({
                         <button
                           type="button"
                           onClick={() => setExpandedVideoId(null)}
-                          className="mt-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary/20 rounded"
+                          className="mt-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary rounded"
                           aria-label={t('hideVideoAria')}
                         >
                           {t('hideVideoAria')}

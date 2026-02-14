@@ -45,6 +45,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
   const { t } = useTranslation('qualiphotoModal');
 
   const [isImageFullscreen, setIsImageFullscreen] = useState(false);
+  const [fullscreenZoom, setFullscreenZoom] = useState(1);
   const [titleValue, setTitleValue] = useState('');
   const [descriptionValue, setDescriptionValue] = useState('');
   const [titleEditEnabled, setTitleEditEnabled] = useState(false);
@@ -76,12 +77,27 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
 
   useEffect(() => {
     if (!isImageFullscreen) return;
+    setFullscreenZoom(1);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
   }, [isImageFullscreen]);
+
+  const handleFullscreenZoomIn = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFullscreenZoom((z) => Math.min(4, z + 0.5));
+  }, []);
+  const handleFullscreenZoomOut = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFullscreenZoom((z) => Math.max(0.5, z - 0.5));
+  }, []);
+  const handleFullscreenWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) setFullscreenZoom((z) => Math.min(4, z + 0.15));
+    else setFullscreenZoom((z) => Math.max(0.5, z - 0.15));
+  }, []);
 
   const handleSave = async () => {
     if (!ged) return;
@@ -188,146 +204,189 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
   const isAudio = mediaType === 'audio';
 
   return (
-    <Modal open={!!ged} onClose={onClose} titleId="qualiphoto-detail-title">
-      <div className="mx-auto flex max-h-[90vh] w-full max-w-4xl flex-col bg-neutral-50/80">
-        {/* Sticky header – close only (space freed) */}
-        <header className="sticky top-0 z-10 flex items-center justify-end border-b border-neutral-200/60 bg-white/95 px-6 py-3 backdrop-blur-sm">
+    <Modal
+      open={!!ged}
+      onClose={onClose}
+      titleId="qualiphoto-detail-title"
+      contentClassName="relative z-10 w-[90vw] min-h-[88vh] max-h-[92vh] overflow-auto rounded-2xl bg-white shadow-2xl focus:outline-none"
+    >
+      <div className="flex min-h-[88vh] w-full flex-col bg-neutral-50/80">
+        {/* Very top: title input row + close button */}
+        <header className="sticky top-0 z-10 flex w-full items-center gap-3 border-b border-primary/20 bg-white/95 px-4 py-3 backdrop-blur-sm">
+          <div className="min-w-0 flex-1 flex items-center gap-2 rounded-xl border-2 border-primary/70 bg-white shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
+            <input
+              type="text"
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              disabled={!titleEditEnabled}
+              className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-center text-[0.9375rem] font-medium text-neutral-800 placeholder:text-neutral-400 disabled:bg-neutral-50 disabled:text-neutral-600 focus:outline-none focus:ring-0"
+              placeholder={t('defaultTitle')}
+              aria-label={t('titleLabel')}
+            />
+            <button
+              type="button"
+              onClick={() => setTitleEditEnabled((e) => !e)}
+              className="shrink-0 rounded-r-xl p-3 text-neutral-500 transition hover:bg-neutral-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label={t('updateAria')}
+              title={t('updateAria')}
+            >
+              <PencilIcon className="h-4 w-4" />
+            </button>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="shrink-0 rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary"
             aria-label={t('closeAria')}
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </header>
 
-        {/* Content: two columns on desktop, stacked on mobile */}
         <div className="flex-1 overflow-y-auto">
-          <div className="flex flex-col lg:flex-row">
-            {/* Left column – Media zone (40%): image, video, or audio */}
-            <div className="shrink-0 lg:w-[40%] lg:min-w-0 p-6">
-              <div className="rounded-2xl bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-                <div className="mb-2 flex items-center gap-2">
-                  <span
-                    className="inline-flex rounded-md bg-neutral-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700"
+
+          {/* Media – full width of modal */}
+          <section className="w-full px-6 py-4">
+            <div className="w-full overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
+              <div className="mb-2 flex items-center gap-2 px-2">
+                <span
+                  className="inline-flex rounded-md bg-neutral-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700"
+                  aria-hidden
+                >
+                  {isImage && t('mediaTypeImage')}
+                  {isVideo && t('mediaTypeVideo')}
+                  {isAudio && t('mediaTypeAudio')}
+                </span>
+              </div>
+              <div className="group relative flex w-full items-center justify-center overflow-hidden bg-neutral-100">
+                {isImage && (
+                  <button
+                    type="button"
+                    onClick={() => setIsImageFullscreen(true)}
+                    className="flex w-full cursor-zoom-in items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset"
+                    aria-label={t('enlargeImageAria')}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={cardTitle}
+                      className="w-full object-contain max-h-[65vh]"
+                      draggable={false}
+                    />
+                  </button>
+                )}
+                {isVideo && (
+                  <div className="flex w-full flex-col">
+                    <video
+                      src={imageUrl}
+                      controls
+                      playsInline
+                      className="w-full rounded-b-xl object-contain bg-neutral-900 shadow-md max-h-[65vh]"
+                      aria-label={cardTitle}
+                    />
+                    <div className="flex justify-between items-center gap-2 px-4 py-2 text-xs text-neutral-600 bg-white/80">
+                      <span className="min-w-0 truncate font-medium">{ged.author || '—'}</span>
+                      <span className="shrink-0 tabular-nums">{photoDate}</span>
+                    </div>
+                  </div>
+                )}
+                {isAudio && (
+                  <div className="flex w-full flex-col items-center justify-center gap-4 p-6">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
+                      <svg className="h-10 w-10" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                      </svg>
+                    </div>
+                    <audio
+                      src={imageUrl}
+                      controls
+                      className="w-full max-w-sm"
+                      aria-label={cardTitle}
+                    />
+                    <div className="flex w-full max-w-sm justify-between gap-2 text-xs text-neutral-600">
+                      <span className="truncate">{ged.author || '—'}</span>
+                      <span className="shrink-0 tabular-nums">{photoDate}</span>
+                    </div>
+                  </div>
+                )}
+                {isImage && (
+                  <div
+                    className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-3 px-5 pointer-events-none"
                     aria-hidden
                   >
-                    {isImage && t('mediaTypeImage')}
-                    {isVideo && t('mediaTypeVideo')}
-                    {isAudio && t('mediaTypeAudio')}
-                  </span>
-                </div>
-                <div className="group relative flex w-full aspect-[4/3] min-h-[200px] items-center justify-center overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
-                  {isImage && (
-                    <button
-                      type="button"
-                      onClick={() => setIsImageFullscreen(true)}
-                      className="absolute inset-0 flex cursor-zoom-in items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 rounded-xl"
-                      aria-label={t('enlargeImageAria')}
-                    >
-                      <img
-                        src={imageUrl}
-                        alt={cardTitle}
-                        className="max-h-full max-w-full object-contain"
-                        draggable={false}
-                      />
-                    </button>
-                  )}
-                  {isVideo && (
-                    <div className="flex h-full w-full flex-col gap-2">
-                      <video
-                        src={imageUrl}
-                        controls
-                        playsInline
-                        className="h-full w-full rounded-xl object-contain bg-neutral-900 shadow-md ring-1 ring-black/5"
-                        aria-label={cardTitle}
-                      />
-                      <div className="flex justify-between items-center gap-2 px-1 text-xs text-neutral-600">
-                        <span className="min-w-0 truncate font-medium">{ged.author || '—'}</span>
-                        <span className="shrink-0 tabular-nums">{photoDate}</span>
-                      </div>
+                    <div className="flex justify-between items-center gap-4">
+                      <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-white opacity-95 drop-shadow-lg">
+                        {ged.author || '—'}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-[0.8125rem] font-medium text-white/90 drop-shadow-lg">
+                        {photoDate}
+                      </span>
                     </div>
-                  )}
-                  {isAudio && (
-                    <div className="flex w-full flex-col items-center justify-center gap-4 p-6">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
-                        <svg className="h-10 w-10" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                        </svg>
-                      </div>
-                      <audio
-                        src={imageUrl}
-                        controls
-                        className="w-full max-w-sm"
-                        aria-label={cardTitle}
-                      />
-                      <div className="flex w-full max-w-sm justify-between gap-2 text-xs text-neutral-600">
-                        <span className="truncate">{ged.author || '—'}</span>
-                        <span className="shrink-0 tabular-nums">{photoDate}</span>
-                      </div>
-                    </div>
-                  )}
-                  {/* Overlay: author & date (image only; video has its own overlay above controls) */}
-                  {isImage && (
-                    <div
-                      className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-3 px-5 pointer-events-none rounded-b-xl"
-                      aria-hidden
-                    >
-                      <div className="flex justify-between items-center gap-4">
-                        <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-white opacity-95 drop-shadow-lg">
-                          {ged.author || '—'}
-                        </span>
-                        <span className="shrink-0 tabular-nums text-[0.8125rem] font-medium text-white/90 drop-shadow-lg">
-                          {photoDate}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
+          </section>
 
-            {/* Fullscreen image overlay (image only) */}
-            {isImage && isImageFullscreen && (
+          {/* Fullscreen image overlay with zoom */}
+          {isImage && isImageFullscreen && (
+            <div
+              className="fixed inset-0 z-[60] flex flex-col bg-black/90"
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('fullscreenAria')}
+            >
+              <button
+                type="button"
+                onClick={() => setIsImageFullscreen(false)}
+                className="absolute inset-0 cursor-default z-0"
+                aria-hidden
+              />
               <div
-                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
-                role="dialog"
-                aria-modal="true"
-                aria-label={t('fullscreenAria')}
+                className="flex-1 overflow-auto flex items-center justify-center min-h-0 p-4"
+                onWheel={handleFullscreenWheel}
+                role="img"
+                aria-label={cardTitle}
               >
-                <button
-                  type="button"
-                  onClick={() => setIsImageFullscreen(false)}
-                  className="absolute inset-0 cursor-default"
-                  aria-hidden
-                />
                 <img
                   src={imageUrl}
                   alt={cardTitle}
-                  className="relative z-10 max-h-full max-w-full cursor-zoom-out object-contain"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsImageFullscreen(false);
-                  }}
+                  className="relative z-10 max-h-full max-w-full object-contain select-none pointer-events-none"
+                  style={{ transform: `scale(${fullscreenZoom})`, transformOrigin: 'center' }}
                   draggable={false}
                 />
+              </div>
+              <div className="flex items-center justify-center gap-3 pb-6 pt-2 z-20">
+                <button
+                  type="button"
+                  onClick={handleFullscreenZoomOut}
+                  className="rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
+                  aria-label={t('zoomOutAria')}
+                  disabled={fullscreenZoom <= 0.5}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                  </svg>
+                </button>
+                <span className="min-w-[4rem] text-center text-sm font-medium text-white/90">
+                  {Math.round(fullscreenZoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={handleFullscreenZoomIn}
+                  className="rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
+                  aria-label={t('zoomInAria')}
+                  disabled={fullscreenZoom >= 4}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsImageFullscreen(false)}
-                  className="absolute right-4 top-4 z-20 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+                  className="rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 ml-2"
                   aria-label={t('closeAria')}
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -335,52 +394,26 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                   </svg>
                 </button>
               </div>
-            )}
-
-            {/* Right column – Title and description only (60%) */}
-            <div className="flex flex-1 min-w-0 flex-col border-t border-neutral-200/60 lg:border-t-0 lg:border-l lg:border-neutral-200/60 p-6">
-              {/* Title – input with update icon on the right */}
-              <section className="mb-5">
-                <div className="flex items-center gap-2 rounded-xl border-2 border-neutral-200 bg-white shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-                  <input
-                    type="text"
-                    value={titleValue}
-                    onChange={(e) => setTitleValue(e.target.value)}
-                    disabled={!titleEditEnabled}
-                    className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-[0.9375rem] font-medium text-neutral-800 placeholder:text-neutral-400 disabled:bg-neutral-50 disabled:text-neutral-600 focus:outline-none focus:ring-0"
-                    placeholder={t('defaultTitle')}
-                    aria-label={t('titleLabel')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setTitleEditEnabled((e) => !e)}
-                    className="shrink-0 rounded-r-xl p-3 text-neutral-500 transition hover:bg-neutral-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    aria-label={t('updateAria')}
-                    title={t('updateAria')}
-                  >
-                    <PencilIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              </section>
-
-              {/* Description – rich text editor (no label/icon) */}
-              <section className="flex flex-1 flex-col min-h-0">
-                <div className="min-h-[200px] flex-1 min-w-0">
-                  <RichTextEditor
-                    key={`${ged.id}-${editorKey}`}
-                    value={descriptionValue}
-                    onChange={setDescriptionValue}
-                    placeholder={t('noDescription')}
-                    rows={6}
-                    readOnly={!descriptionEditEnabled}
-                    showCharCount={true}
-                  />
-                </div>
-              </section>
             </div>
-          </div>
+          )}
 
-          {/* Associated GEDs (idsource = this GED's id) – below main content, above footer */}
+          {/* Description – full width, primary border */}
+          <section className="w-full px-6 py-4">
+            <div className="w-full min-h-[200px] rounded-xl border-2 border-primary/70 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
+              <RichTextEditor
+                key={`${ged.id}-${editorKey}`}
+                value={descriptionValue}
+                onChange={setDescriptionValue}
+                placeholder={t('noDescription')}
+                rows={6}
+                readOnly={!descriptionEditEnabled}
+                showCharCount={true}
+                className="w-full"
+              />
+            </div>
+          </section>
+
+          {/* Associated GEDs – as before */}
           <AssociatedGedsList
             items={associatedOnlyThisGed}
             loading={associatedLoading}
@@ -389,7 +422,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
           />
         </div>
 
-        {/* Fixed bottom – Save & Reset */}
+        {/* Footer – Save, Reset, Generate PDF */}
         <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200/60 bg-white/95 px-6 py-4 backdrop-blur-sm">
           <div className="min-w-0 flex-1">
             {saveError && (
@@ -403,7 +436,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               type="button"
               onClick={handleGeneratePdf}
               disabled={pdfGenerating || saving}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {pdfGenerating ? t('generatingPdf') : t('generatePdf')}
             </button>
@@ -411,7 +444,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               type="button"
               onClick={handleReset}
               disabled={saving}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {t('reset')}
             </button>
@@ -419,7 +452,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-md transition hover:opacity-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2"
+              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-md transition hover:opacity-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               {saving ? t('saving') : t('save')}
             </button>

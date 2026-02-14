@@ -5,6 +5,19 @@
 @tailwind utilities;
 
 @layer base {
+  /* All inputs use primary-only for focus (no blue default) */
+  input:focus,
+  textarea:focus,
+  select:focus,
+  [contenteditable]:focus {
+    outline: none;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  button:focus-visible {
+    --tw-ring-color: var(--color-primary);
+  }
   html,
   body {
     @apply h-full m-0;

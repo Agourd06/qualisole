@@ -1,5 +1,6 @@
-import React, { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -171,7 +172,12 @@ function PopupMedia({
 
 export const MapPage: React.FC<{ options?: MapPageOptions }> = ({ options = {} }) => {
   const { t } = useTranslation(['mapPage', 'qualiphotoPage']);
+  const { refreshTrigger } = useNavbarFilters();
   const { loading, error, groups, mapCenter, refetch } = useMapGeds();
+
+  useEffect(() => {
+    if (refreshTrigger > 0) refetch();
+  }, [refreshTrigger, refetch]);
 
   const maxVisible = options.maxVisibleMarkers ?? MAP_MAX_VISIBLE_MARKERS;
   const boundsPad = options.boundsPad ?? MAP_VIEWPORT_BOUNDS_PAD;

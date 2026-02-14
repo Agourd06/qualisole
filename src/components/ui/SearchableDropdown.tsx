@@ -145,7 +145,7 @@ export function SearchableDropdown<T extends Record<string, unknown>>({
           aria-controls={`${inputId}-listbox`}
           aria-label={label}
           id={inputId}
-          className="flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
+          className="flex cursor-pointer items-center rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary"
         >
           {isOpen ? (
             <input

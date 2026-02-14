@@ -33,7 +33,7 @@ export const DateInput: React.FC<DateInputProps> = ({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         aria-label={ariaLabel ?? label}
-        className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-800 shadow-sm transition placeholder:text-neutral-400 hover:border-neutral-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-neutral-50 disabled:text-neutral-500"
+        className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-800 shadow-sm transition placeholder:text-neutral-400 hover:border-neutral-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-neutral-50 disabled:text-neutral-500"
       />
     </div>
   );

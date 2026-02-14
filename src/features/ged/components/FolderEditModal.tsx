@@ -107,7 +107,7 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary"
             aria-label={t('closeAria', { ns: 'qualiphotoModal' })}
           >
             <svg
@@ -132,7 +132,7 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
               <label className="mb-2 block text-sm font-medium uppercase tracking-wide text-neutral-500">
                 {t('folderTitleLabel')}
               </label>
-              <div className="flex items-center gap-2 rounded-xl border-2 border-neutral-200 bg-white shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+              <div className="flex items-center gap-2 rounded-xl border-2 border-neutral-200 bg-white shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
                 <input
                   type="text"
                   value={title}
@@ -193,7 +193,7 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {t('folderCancel')}
             </button>
@@ -201,7 +201,7 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white shadow-md transition hover:opacity-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2"
+              className="rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white shadow-md transition hover:opacity-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               {saving ? t('folderSaving') : t('folderSave')}
             </button>

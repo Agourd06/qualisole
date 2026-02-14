@@ -5,6 +5,9 @@ export default {
     sequence: 'Sequence',
     chantier: 'Chantier',
     map: 'Map',
+    refresh: 'Refresh',
+    refreshAria: 'Refresh data',
+    addConstat: 'Add constat',
     logoutAria: 'Log out',
   },
   filters: {
@@ -120,6 +123,8 @@ export default {
     clickToEnlarge: 'Click to enlarge',
     enlargeImageAria: 'Enlarge image',
     fullscreenAria: 'Fullscreen image',
+    zoomInAria: 'Zoom in',
+    zoomOutAria: 'Zoom out',
     writtenBy: 'Written by',
     date: 'Date',
     descriptionTitle: 'Detailed description',

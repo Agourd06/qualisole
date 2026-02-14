@@ -5,6 +5,9 @@ export default {
     sequence: 'Séquence',
     chantier: 'Chantier',
     map: 'Carte',
+    refresh: 'Actualiser',
+    refreshAria: 'Actualiser les données',
+    addConstat: 'Ajouter un constat',
     logoutAria: 'Se déconnecter',
   },
   filters: {
@@ -120,6 +123,8 @@ export default {
     clickToEnlarge: 'Cliquez pour agrandir',
     enlargeImageAria: "Agrandir l'image",
     fullscreenAria: 'Image en plein écran',
+    zoomInAria: 'Zoom avant',
+    zoomOutAria: 'Zoom arrière',
     writtenBy: 'Rédigé par',
     date: 'Date',
     descriptionTitle: 'Description détaillée',

@@ -129,7 +129,7 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('uploadGedTitlePlaceholder')}
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border-2 border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div>
@@ -142,7 +142,7 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('uploadGedDescriptionPlaceholder')}
               rows={3}
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border-2 border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div>
@@ -155,7 +155,7 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
               value={chantier}
               onChange={(e) => setChantier(e.target.value)}
               placeholder={t('uploadGedChantierPlaceholder')}
-              className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border-2 border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div>

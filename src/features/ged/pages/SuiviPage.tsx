@@ -24,7 +24,7 @@ import {
 
 export const SuiviPage: React.FC = () => {
   const { t } = useTranslation('qualiphotoPage');
-  const { selectedChantier, selectedFolder } = useNavbarFilters();
+  const { selectedChantier, selectedFolder, refreshTrigger } = useNavbarFilters();
 
   const [items, setItems] = useState<GedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +97,13 @@ export const SuiviPage: React.FC = () => {
   const handleMoveSuccess = useCallback(async () => {
     await Promise.all([refetchParallele(), refetchLeftGeds()]);
   }, [refetchParallele, refetchLeftGeds]);
+
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      refetchLeftGeds();
+      refetchParallele();
+    }
+  }, [refreshTrigger, refetchLeftGeds, refetchParallele]);
 
   const handleSaved = useCallback(
     (updates?: Partial<Pick<GedItem, 'title' | 'description'>>) => {

@@ -32,7 +32,7 @@ function filterByChantier(items: GedItem[], chantierId: string, chantierTitle: s
 
 export const ChantierPage: React.FC = () => {
   const { t } = useTranslation(['chantierPage', 'qualiphotoPage']);
-  const { selectedChantier } = useNavbarFilters();
+  const { selectedChantier, refreshTrigger } = useNavbarFilters();
 
   const [leftItems, setLeftItems] = useState<GedItem[]>([]);
   const [leftLoading, setLeftLoading] = useState(true);
@@ -156,6 +156,13 @@ export const ChantierPage: React.FC = () => {
       cancelled = true;
     };
   }, [selectedChantier, fetchChantierGeds]);
+
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      refetchLeft();
+      refetchRight();
+    }
+  }, [refreshTrigger, refetchLeft, refetchRight]);
 
   const leftImageItems = useMemo(
     () =>

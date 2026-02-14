@@ -22,7 +22,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const base =
     'inline-flex items-center justify-center gap-3 rounded-full border text-[0.95rem] font-semibold tracking-wide ' +
-    'px-5 py-3 transition-colors transition-shadow duration-150 whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-offset-2';
+    'px-5 py-3 transition-colors transition-shadow duration-150 whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
 
   const primary =
     'border-transparent bg-primary text-white shadow-primary ' +

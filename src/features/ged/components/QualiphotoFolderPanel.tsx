@@ -286,13 +286,13 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                       snapshot.isDragging ? 'shadow-lg z-10 bg-white rounded-2xl' : ''
                     }`}
                   >
-                    <label className="flex shrink-0 items-center pt-2 cursor-pointer focus-within:ring-2 focus-within:ring-primary/20 rounded">
+                    <label className="flex shrink-0 items-center pt-2 cursor-pointer focus-within:ring-2 focus-within:ring-primary rounded">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(ged.id)}
                         onChange={() => toggleSelection(ged.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary/20"
+                        className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary"
                         aria-label={t('selectImageAria', { title: ged.title || t('noTitle') })}
                       />
                     </label>
@@ -362,7 +362,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                 ref={selectAllCheckboxRef}
                 checked={allSelected}
                 onChange={toggleSelectAll}
-                className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary/20"
+                className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary"
                 aria-label={allSelected ? t('deselectAll') : t('selectAll')}
               />
               <span className="text-xs font-medium text-neutral-600 whitespace-nowrap">
@@ -412,7 +412,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
           <button
             type="button"
             onClick={() => setIsEditModalOpen(true)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
             aria-label={t('editFolderAria')}
             title={t('editFolderAria')}
           >

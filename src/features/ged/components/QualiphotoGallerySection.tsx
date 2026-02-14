@@ -125,7 +125,7 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
         onClick={onClick}
         onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
         className={`group flex w-full overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 ease-out ${
-          onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20' : ''
+          onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary' : ''
         } ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
         aria-label={title}
       >
@@ -181,7 +181,7 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
     onDragStart={isDraggable && ged ? (e) => onDragStart?.(e, ged) : undefined}
     onClick={onClick}
     onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
-    className={`group w-full overflow-hidden rounded-2xl transition-all duration-300 ease-out ${onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20' : ''} ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    className={`group w-full overflow-hidden rounded-2xl transition-all duration-300 ease-out ${onClick ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary' : ''} ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
     aria-label={title}
   >
     <div className="relative aspect-[16/9] w-full overflow-hidden">

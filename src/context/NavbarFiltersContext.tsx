@@ -24,6 +24,7 @@ export interface NavbarFiltersState {
   dateFin: string;
   selectedChantier: Projet | null;
   selectedFolder: Folder | null;
+  refreshTrigger: number;
 }
 
 export interface NavbarFiltersContextValue extends NavbarFiltersState {
@@ -31,6 +32,7 @@ export interface NavbarFiltersContextValue extends NavbarFiltersState {
   setDateFin: (value: string) => void;
   setSelectedChantier: (value: Projet | null) => void;
   setSelectedFolder: (value: Folder | null) => void;
+  triggerRefresh: () => void;
 }
 
 const NavbarFiltersContext = createContext<NavbarFiltersContextValue | null>(null);
@@ -40,10 +42,15 @@ export const NavbarFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   const [dateFin, setDateFin] = useState(getTodayDateString);
   const [selectedChantier, setSelectedChantier] = useState<Projet | null>(null);
   const [selectedFolder, setSelectedFolderState] = useState<Folder | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const setSelectedChantierAndClearFolder = useCallback((projet: Projet | null) => {
     setSelectedChantier(projet);
     setSelectedFolderState(null);
+  }, []);
+
+  const triggerRefresh = useCallback(() => {
+    setRefreshTrigger((n) => n + 1);
   }, []);
 
   const value = useMemo<NavbarFiltersContextValue>(
@@ -52,12 +59,14 @@ export const NavbarFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
       dateFin,
       selectedChantier,
       selectedFolder,
+      refreshTrigger,
       setDateDebut,
       setDateFin,
       setSelectedChantier: setSelectedChantierAndClearFolder,
       setSelectedFolder: setSelectedFolderState,
+      triggerRefresh,
     }),
-    [dateDebut, dateFin, selectedChantier, selectedFolder, setSelectedChantierAndClearFolder],
+    [dateDebut, dateFin, selectedChantier, selectedFolder, refreshTrigger, setSelectedChantierAndClearFolder, triggerRefresh],
   );
 
   return (
