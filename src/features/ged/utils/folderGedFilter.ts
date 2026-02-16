@@ -1,6 +1,18 @@
 import type { GedItem } from '../types/ged.types';
 import { isMediaUrl } from './qualiphotoHelpers';
 
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  if (items.length <= 1) return items;
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    result.push(item);
+  }
+  return result;
+}
+
 /**
  * Applies a saved order to a list of items. Items in orderedIds appear in that order;
  * any items not in orderedIds are appended at the end (e.g. newly added to folder).
@@ -10,9 +22,11 @@ export function applyOrderToItems<T extends { id: string }>(
   orderedIds: string[] | null,
 ): T[] {
   if (!items.length) return items;
-  if (!orderedIds || orderedIds.length === 0) return items;
+  // Always dedupe to avoid duplicate React keys / draggable ids when backend returns duplicates.
+  const uniqueItems = dedupeById(items);
+  if (!orderedIds || orderedIds.length === 0) return uniqueItems;
 
-  const byId = new Map(items.map((i) => [i.id, i]));
+  const byId = new Map(uniqueItems.map((i) => [i.id, i]));
   const result: T[] = [];
   const seen = new Set<string>();
 
@@ -23,7 +37,7 @@ export function applyOrderToItems<T extends { id: string }>(
       seen.add(id);
     }
   }
-  for (const item of items) {
+  for (const item of uniqueItems) {
     if (!seen.has(item.id)) result.push(item);
   }
   return result;
@@ -38,7 +52,7 @@ export function filterGedsByFolderId(
   folderId: string | null,
 ): GedItem[] {
   if (!folderId) return [];
-  return items.filter((item) => String(item.idsource) === String(folderId));
+  return dedupeById(items).filter((item) => String(item.idsource) === String(folderId));
 }
 
 /**

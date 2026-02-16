@@ -15,29 +15,8 @@ import {
   parseSlotDroppableId,
   parseFolderDropId,
   toMovePayload,
+  findGedInSlot,
 } from './utils';
-
-/** Normalize URL for comparison (strip leading slash). */
-function normalizeUrl(url: string | null): string {
-  if (!url) return '';
-  return url.startsWith('/') ? url.slice(1) : url;
-}
-
-/** Find the GED in the list that matches the row slot (by url or title). */
-function findGedInSlot(
-  geds: GedItem[],
-  row: GedParalleleItem,
-  slot: 1 | 2,
-): GedItem | undefined {
-  const url = slot === 1 ? row.url1 : row.url2;
-  const title = slot === 1 ? row.title1 : row.title2;
-  const normRowUrl = normalizeUrl(url);
-  return geds.find((g) => {
-    if (normRowUrl && normalizeUrl(g.url) === normRowUrl) return true;
-    if (title != null && title.trim() && g.title?.trim() === title.trim()) return true;
-    return false;
-  });
-}
 
 export interface UseSuiviDragDropArgs {
   folderId: string | null;
@@ -101,40 +80,69 @@ export function useSuiviDragDrop({
 
       // Right → left: only PUT geds/:id?kind=qualiphoto&idsource=00000000-0000-0000-0000-000000000000.
       // Backend removes the GED from gedparallel when idsource is empty GUID — we do nothing else.
-      // Get GED id from GEDs API (idsource=rowId), find by url/title; Slot 2: unassign that GED only. Slot 1: unassign both GEDs (clean both id sources).
+      // Update only the specific GED that was dragged (slot 1 or slot 2), not both.
       if (slotSource && destination.droppableId === DROPPABLE_GEDS) {
         const row = paralleleItems.find((r) => r.id === slotSource.rowId);
+        if (!row) return;
+
         setSlotUpdateInProgress(true);
         try {
-          if (row) {
-            const gedsInRow = await getGeds({
-              kind: QUALIPHOTO_KIND,
-              idsource: slotSource.rowId,
-              limit: 20,
-            });
-            if (slotSource.slot === 2) {
-              const ged = findGedInSlot(gedsInRow, row, 2);
-              if (ged) {
-                await moveGedToMain({ id: ged.id, kind: QUALIPHOTO_KIND });
-              }
+          // idsource1 and idsource2 are NOT the GED id – we must fetch GEDs and find by URL to get the real GED id.
+          // Then PUT geds/:realId?kind=...&idsource=00000000-0000-0000-0000-000000000000
+          const slot = slotSource.slot;
+          const rowKind = slot === 1 ? row.kind1 : row.kind2;
+          const kind = rowKind ?? QUALIPHOTO_KIND;
+
+          if (slot === 2) {
+            const idsource = row.idsource2;
+            if (!idsource) {
+              console.warn('  No idsource2 found for slot 2');
             } else {
-              // Slot 1 (Avant): Avant GED may have idsource=folderId — try row GEDs first, then folder GEDs.
-              let ged1 = findGedInSlot(gedsInRow, row, 1);
-              if (!ged1 && folderId) {
-                const folderGeds = await getGeds({
-                  kind: QUALIPHOTO_KIND,
-                  idsource: folderId,
-                  limit: 100,
-                });
-                ged1 = findGedInSlot(folderGeds, row, 1);
+              let gedsInSlot2 = await getGeds({ kind, idsource, limit: 50 });
+              let ged = findGedInSlot(gedsInSlot2, row, 2);
+              if (!ged && kind !== QUALIPHOTO_KIND) {
+                gedsInSlot2 = await getGeds({ kind: QUALIPHOTO_KIND, idsource, limit: 50 });
+                ged = findGedInSlot(gedsInSlot2, row, 2);
               }
-              const ged2 = findGedInSlot(gedsInRow, row, 2);
-              if (ged1) await moveGedToMain({ id: ged1.id, kind: QUALIPHOTO_KIND });
-              if (ged2 && ged2.id !== ged1?.id) {
-                await moveGedToMain({ id: ged2.id, kind: QUALIPHOTO_KIND });
+              if (ged) {
+                await moveGedToMain({ id: ged.id, kind: ged.kind });
+              } else {
+                console.warn(`  Could not find GED matching slot 2 by URL (url2: ${row.url2})`);
+              }
+            }
+          } else {
+            const idsource = row.idsource1;
+            if (!idsource) {
+              console.warn('  No idsource1 found for slot 1');
+            } else {
+              let gedsInSlot1 = await getGeds({ kind, idsource, limit: 50 });
+              let ged1 = findGedInSlot(gedsInSlot1, row, 1);
+              if (!ged1 && kind !== QUALIPHOTO_KIND) {
+                gedsInSlot1 = await getGeds({ kind: QUALIPHOTO_KIND, idsource, limit: 50 });
+                ged1 = findGedInSlot(gedsInSlot1, row, 1);
+              }
+              if (!ged1 && folderId && idsource === folderId) {
+                const folderGeds = await getGeds({ kind, idsource: folderId, limit: 100 });
+                ged1 = findGedInSlot(folderGeds, row, 1);
+                if (!ged1 && kind !== QUALIPHOTO_KIND) {
+                  const folderGeds2 = await getGeds({ kind: QUALIPHOTO_KIND, idsource: folderId, limit: 100 });
+                  ged1 = findGedInSlot(folderGeds2, row, 1);
+                }
+              }
+              if (!ged1) {
+                gedsInSlot1 = await getGeds({ kind, idsource: row.id, limit: 50 });
+                ged1 = findGedInSlot(gedsInSlot1, row, 1);
+              }
+              if (ged1) {
+                await moveGedToMain({ id: ged1.id, kind: ged1.kind });
+              } else {
+                console.warn(`  Could not find GED matching slot 1 by URL (url1: ${row.url1})`);
               }
             }
           }
+          scheduleAfterDndCleanup(onMoveSuccess);
+        } catch (err) {
+          console.error('Failed to move GED from slot to main:', err);
           scheduleAfterDndCleanup(onMoveSuccess);
         } finally {
           setSlotUpdateInProgress(false);

@@ -16,6 +16,8 @@ export interface GedItem {
   kind: string;
   description: string | null;
   author: string | null;
+  /** Author user id (for filtering by author). */
+  idauthor?: string | null;
   position: number;
   latitude: string | null;
   longitude: string | null;

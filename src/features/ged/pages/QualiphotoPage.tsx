@@ -34,6 +34,16 @@ const GED_LIMIT = 500;
 const DROPPABLE_LEFT = 'unassigned';
 const DROPPABLE_RIGHT = 'assigned';
 
+function toDateOnly(isoOrDateStr: string): string {
+  if (!isoOrDateStr) return '';
+  const d = new Date(isoOrDateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function toMovePayload(ged: GedItem): GedMovePayload {
   return {
     id: ged.id,
@@ -45,7 +55,14 @@ function toMovePayload(ged: GedItem): GedMovePayload {
 
 export const QualiphotoPage: React.FC = () => {
   const { t } = useTranslation('qualiphotoPage');
-  const { selectedFolder, selectedChantier, refreshTrigger } = useNavbarFilters();
+  const {
+    selectedFolder,
+    selectedChantier,
+    selectedAuthorId,
+    dateDebut,
+    dateFin,
+    refreshTrigger,
+  } = useNavbarFilters();
 
   const [leftItems, setLeftItems] = useState<GedItem[]>([]);
   const [leftLoading, setLeftLoading] = useState(true);
@@ -105,17 +122,6 @@ export const QualiphotoPage: React.FC = () => {
     };
   }, [fetchUnassignedGeds]);
 
-  const leftImageItems = useMemo(
-    () =>
-      leftItems.filter(
-        (item) =>
-          item.url &&
-          isImageOrVideoUrl(item.url) &&
-          isUnassignedIdsource(item.idsource),
-      ),
-    [leftItems],
-  );
-
   const folderId = selectedFolder?.id ?? null;
   const {
     items: folderItems,
@@ -138,6 +144,47 @@ export const QualiphotoPage: React.FC = () => {
   const orderedFolderItems = useMemo(
     () => applyOrderToItems(folderItems, folderImageOrder),
     [folderItems, folderImageOrder],
+  );
+
+  /** Base list: unassigned GEDs or folder GEDs when a dossier is selected. */
+  const leftBaseList = useMemo(
+    () => (selectedFolder ? orderedFolderItems : leftItems),
+    [selectedFolder, orderedFolderItems, leftItems],
+  );
+
+  /** Apply advanced filters: author, date range (inclusive), chantier (when selected). */
+  const leftFilteredByFilters = useMemo(() => {
+    return leftBaseList.filter((ged) => {
+      if (selectedAuthorId != null && selectedAuthorId !== '') {
+        const authorId = ged.idauthor ?? (ged as { id_author?: string }).id_author;
+        if (String(authorId ?? '') !== String(selectedAuthorId)) return false;
+      }
+      const gedDateOnly = toDateOnly(ged.created_at);
+      if (dateDebut && gedDateOnly < dateDebut) return false;
+      if (dateFin && gedDateOnly > dateFin) return false;
+      if (selectedChantier?.title != null && selectedChantier.title !== '') {
+        const gedChantier = ged.chantier ?? ged.categorie ?? '';
+        if (gedChantier !== selectedChantier.title) return false;
+      }
+      return true;
+    });
+  }, [
+    leftBaseList,
+    selectedAuthorId,
+    dateDebut,
+    dateFin,
+    selectedChantier?.title,
+  ]);
+
+  const leftImageItems = useMemo(
+    () =>
+      leftFilteredByFilters.filter(
+        (item) =>
+          item.url &&
+          isImageOrVideoUrl(item.url) &&
+          (selectedFolder ? true : isUnassignedIdsource(item.idsource)),
+      ),
+    [leftFilteredByFilters, selectedFolder],
   );
 
   const orderedFolderImageIds = useMemo(
@@ -392,7 +439,7 @@ export const QualiphotoPage: React.FC = () => {
       <DragDropContext key={`${dndKey}-${folderId ?? 'none'}`} onDragEnd={handleDragEnd}>
         <div className="">
           <div className="flex pb-12 pt-12 gap-0">
-            {/* Left: all qualiphoto images (idsource = 0), draggable */}
+            {/* Left: all qualiphoto images (idsource = 0 or folder when dossier selected), draggable */}
             <aside
             className="flex shrink-0 flex-col pl-8 sm:pl-12 lg:pl-16"
             style={{ width: '33vw' }}

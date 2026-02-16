@@ -21,6 +21,16 @@ const GED_LIMIT = 500;
 const DROPPABLE_LEFT = 'chantier-geds';
 const DROPPABLE_RIGHT = 'chantier-assigned';
 
+function toDateOnly(isoOrDateStr: string): string {
+  if (!isoOrDateStr) return '';
+  const d = new Date(isoOrDateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** Returns GEDs that belong to the given chantier (by id or name). */
 function filterByChantier(items: GedItem[], chantierId: string, chantierTitle: string): GedItem[] {
   return items.filter(
@@ -32,7 +42,13 @@ function filterByChantier(items: GedItem[], chantierId: string, chantierTitle: s
 
 export const ChantierPage: React.FC = () => {
   const { t } = useTranslation(['chantierPage', 'qualiphotoPage']);
-  const { selectedChantier, refreshTrigger } = useNavbarFilters();
+  const {
+    selectedChantier,
+    selectedAuthorId,
+    dateDebut,
+    dateFin,
+    refreshTrigger,
+  } = useNavbarFilters();
 
   const [leftItems, setLeftItems] = useState<GedItem[]>([]);
   const [leftLoading, setLeftLoading] = useState(true);
@@ -164,15 +180,33 @@ export const ChantierPage: React.FC = () => {
     }
   }, [refreshTrigger, refetchLeft, refetchRight]);
 
+  /** Apply advanced filters: author, date range (inclusive), chantier (when selected). */
+  const filteredByFilters = useMemo(() => {
+    return leftItems.filter((ged) => {
+      if (selectedAuthorId != null && selectedAuthorId !== '') {
+        const authorId = ged.idauthor ?? (ged as { id_author?: string }).id_author;
+        if (String(authorId ?? '') !== String(selectedAuthorId)) return false;
+      }
+      const gedDateOnly = toDateOnly(ged.created_at);
+      if (dateDebut && gedDateOnly < dateDebut) return false;
+      if (dateFin && gedDateOnly > dateFin) return false;
+      if (selectedChantier?.title != null && selectedChantier.title !== '') {
+        const gedChantier = ged.chantier ?? ged.categorie ?? '';
+        if (gedChantier !== selectedChantier.title) return false;
+      }
+      return true;
+    });
+  }, [leftItems, selectedAuthorId, dateDebut, dateFin, selectedChantier?.title]);
+
   const leftImageItems = useMemo(
     () =>
-      leftItems.filter(
+      filteredByFilters.filter(
         (item) =>
           item.url &&
           isImageOrVideoUrl(item.url) &&
           isUnassignedIdsource(item.idsource),
       ),
-    [leftItems],
+    [filteredByFilters],
   );
 
   const rightImageItems = useMemo(

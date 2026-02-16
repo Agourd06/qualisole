@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { NavDateInput } from '../ui/NavDateInput';
 import { NavbarChantierDropdown } from './NavbarChantierDropdown';
+import { NavbarAuthorDropdown } from './NavbarAuthorDropdown';
 import { UploadGedModal } from '../../features/ged/components/UploadGedModal';
 import { useNavbarFilters } from '../../context/NavbarFiltersContext';
 import { clearAuth, getStoredAuth } from '../../utils/authStorage';
@@ -44,15 +45,15 @@ export const Navbar: React.FC = () => {
   };
 
   const navLinkClass =
-    'rounded-full px-4 py-2 text-[0.85rem] font-semibold transition-colors';
+    'whitespace-nowrap rounded-full px-2.5 py-1.5 text-[0.8rem] font-semibold transition-colors sm:px-3 sm:py-2 sm:text-[0.85rem]';
   const navLinkActive = 'bg-tertiary text-primary';
   const navLinkInactive = 'text-gray-600 hover:bg-gray-100 hover:text-gray-800';
 
   return (
     <header className="fixed inset-x-0 top-0 z-30 bg-white/80 shadow-sm backdrop-blur-md">
-      <div className="flex items-center justify-between gap-4 px-4 py-3 lg:px-6">
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 lg:gap-4 lg:px-6 lg:py-3">
         {/* Left: Logo | Refresh | Dates | Chantier+Dossier | Add Constat */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 lg:gap-3">
           <div className="flex shrink-0 items-center gap-3 pl-2">
             <div className="flex h-9 w-18 items-center justify-center overflow-hidden rounded-2xl bg-tertiary shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
               <img
@@ -87,18 +88,22 @@ export const Navbar: React.FC = () => {
               aria-label={tFilters('dateFin')}
             />
           </div>
+          <NavbarAuthorDropdown />
           <NavbarChantierDropdown />
           <button
             type="button"
             onClick={() => setAddConstatModalOpen(true)}
-            className="rounded-full bg-primary px-4 py-2 text-[0.85rem] font-semibold text-white shadow-sm transition hover:bg-primary/90"
+            className="whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-[0.8rem] font-semibold text-white shadow-sm transition hover:bg-primary/90 sm:px-4 sm:py-2 sm:text-[0.85rem]"
           >
             {t('addConstat')}
           </button>
         </div>
 
-        {/* Center: Nav tabs */}
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Navigation principale">
+        {/* Center: Nav tabs - never wrap, stay on one line */}
+        <nav
+          className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2"
+          aria-label="Navigation principale"
+        >
           {NAV_TABS.map(({ to, labelKey }) => (
             <NavLink
               key={to}
@@ -114,7 +119,7 @@ export const Navbar: React.FC = () => {
         </nav>
 
         {/* Right: Language | User | Logout */}
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 lg:gap-3">
           <LanguageSwitcher className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[0.8rem] font-semibold shadow-sm transition hover:border-primary hover:bg-tertiary hover:text-primary" />
           {user && (
             <div className="hidden text-[0.8rem] text-gray-600 sm:block">

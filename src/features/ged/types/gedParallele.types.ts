@@ -1,5 +1,10 @@
 export interface GedParalleleItem {
   id: string;
+  /** Actual GED id for slot 1 (unique). Use this for API calls (PUT /geds/:id), NOT idsource1. */
+  id1?: string | null;
+  /** Actual GED id for slot 2 (unique). Use this for API calls (PUT /geds/:id), NOT idsource2. */
+  id2?: string | null;
+  /** Source reference for slot 1 (folder/row id) – NOT unique per GED. Used to update GED's relation. */
   idsource1: string;
   title1: string | null;
   description1: string | null;
@@ -7,6 +12,7 @@ export interface GedParalleleItem {
   latitude1: string | null;
   longitude1: string | null;
   kind1: string | null;
+  /** Source reference for slot 2 (folder/row id) – NOT unique per GED. Used to update GED's relation. */
   idsource2: string | null;
   title2: string | null;
   description2: string | null;

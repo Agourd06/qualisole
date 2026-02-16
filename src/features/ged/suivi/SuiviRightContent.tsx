@@ -1,6 +1,5 @@
 import React from 'react';
 import { Droppable } from '@hello-pangea/dnd';
-import type { GedItem } from '../types/ged.types';
 import type { GedParalleleItem } from '../types/gedParallele.types';
 import { DROPPABLE_RIGHT } from './constants';
 import { ParalleleRow } from './ParalleleRow';
@@ -8,18 +7,16 @@ import { SuiviExportToolbar } from './SuiviExportToolbar';
 
 export interface SuiviRightContentProps {
   selectedFolder: { id: string; title?: string; description?: string | null; conclusion?: string | null } | null;
-  folderId: string | null;
   paralleleItems: GedParalleleItem[];
   paralleleLoading: boolean;
   paralleleError: string | null;
   slotUpdateInProgress: boolean;
   t: (key: string, fallback?: string) => string;
-  onSlotClick?: (ged: GedItem) => void;
+  onSlotClick?: (row: GedParalleleItem, slot: 1 | 2) => void | Promise<void>;
 }
 
 export const SuiviRightContent: React.FC<SuiviRightContentProps> = ({
   selectedFolder,
-  folderId,
   paralleleItems,
   paralleleLoading,
   paralleleError,
@@ -87,7 +84,6 @@ export const SuiviRightContent: React.FC<SuiviRightContentProps> = ({
                   key={row.id}
                   item={row}
                   rowIndex={index}
-                  folderId={folderId}
                   onSlotClick={onSlotClick}
                 />
               ))

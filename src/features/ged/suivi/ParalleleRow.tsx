@@ -1,27 +1,23 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GedItem } from '../types/ged.types';
 import type { GedParalleleItem } from '../types/gedParallele.types';
 import { ParalleleSlot } from './ParalleleSlot';
-import { rowSlotToGedItem, slotDroppableId } from './utils';
+import { slotDroppableId } from './utils';
 
 export interface ParalleleRowProps {
   item: GedParalleleItem;
   rowIndex: number;
-  folderId: string | null;
-  onSlotClick?: (ged: GedItem) => void;
+  onSlotClick?: (row: GedParalleleItem, slot: 1 | 2) => void | Promise<void>;
 }
 
-export const ParalleleRow: React.FC<ParalleleRowProps> = ({ item, rowIndex, folderId, onSlotClick }) => {
+export const ParalleleRow: React.FC<ParalleleRowProps> = ({ item, rowIndex, onSlotClick }) => {
   const { t } = useTranslation('qualiphotoPage');
-
-  const ged1 = rowSlotToGedItem(item, 1, folderId);
-  const ged2 = rowSlotToGedItem(item, 2, folderId);
 
   return (
     <article className="rounded-2xl bg-white/40 py-1 px-1 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div className="grid gap-8 md:grid-cols-2 md:gap-10">
         <ParalleleSlot
+          row={item}
           rowId={item.id}
           slot={1}
           rowIndex={rowIndex}
@@ -31,10 +27,10 @@ export const ParalleleRow: React.FC<ParalleleRowProps> = ({ item, rowIndex, fold
           kind={item.kind1}
           slotDroppableId={slotDroppableId}
           showDragHandle={true}
-          ged={ged1}
           onSlotClick={onSlotClick}
         />
         <ParalleleSlot
+          row={item}
           rowId={item.id}
           slot={2}
           rowIndex={rowIndex}
@@ -44,7 +40,6 @@ export const ParalleleRow: React.FC<ParalleleRowProps> = ({ item, rowIndex, fold
           kind={item.kind2}
           slotDroppableId={slotDroppableId}
           showDragHandle={true}
-          ged={ged2}
           onSlotClick={onSlotClick}
         />
       </div>

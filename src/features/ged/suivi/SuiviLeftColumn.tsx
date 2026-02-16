@@ -60,20 +60,6 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
       </aside>
     );
   }
-  if (leftImageItems.length === 0) {
-    return (
-      <aside
-        className="flex shrink-0 flex-col pl-8 sm:pl-12 lg:pl-16"
-        style={{ width: '33vw' }}
-        aria-label={t('galleryAria')}
-      >
-        <div className="rounded-2xl bg-white/50 px-8 py-16 text-center text-sm text-neutral-500 backdrop-blur-sm">
-          {t('noImages')}
-        </div>
-      </aside>
-    );
-  }
-
   const isAnyPending = disabled;
 
   return (
@@ -92,49 +78,56 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
             } ${isAnyPending ? 'opacity-60 pointer-events-none' : ''}`}
             aria-label={t('galleryAria')}
           >
-            {paginatedItems.map((ged, index) => (
-              <Draggable
-                key={ged.id}
-                draggableId={ged.id}
-                index={index}
-                isDragDisabled={disabled}
-              >
-                {(provided, dragSnapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    className={`relative rounded-2xl ${dragSnapshot.isDragging ? 'opacity-90 shadow-lg' : ''}`}
-                  >
+            {leftImageItems.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 py-12 text-center text-sm text-neutral-500 min-h-[180px]">
+                <p>{t('noImages')}</p>
+                <p className="mt-1 font-medium text-neutral-600">{t('dropHereToUnassign')}</p>
+              </div>
+            ) : (
+              paginatedItems.map((ged, index) => (
+                <Draggable
+                  key={ged.id}
+                  draggableId={ged.id}
+                  index={index}
+                  isDragDisabled={disabled}
+                >
+                  {(provided, dragSnapshot) => (
                     <div
-                      {...provided.dragHandleProps}
-                      className="absolute top-2 right-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-white/90 text-neutral-500 shadow-sm transition hover:bg-white hover:text-neutral-700 active:cursor-grabbing"
-                      aria-label={t('dragHandleAria')}
-                      onClick={(e) => e.stopPropagation()}
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`relative rounded-2xl ${dragSnapshot.isDragging ? 'opacity-90 shadow-lg' : ''}`}
                     >
-                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                        <circle cx="9" cy="6" r="1.5" />
-                        <circle cx="15" cy="6" r="1.5" />
-                        <circle cx="9" cy="12" r="1.5" />
-                        <circle cx="15" cy="12" r="1.5" />
-                        <circle cx="9" cy="18" r="1.5" />
-                        <circle cx="15" cy="18" r="1.5" />
-                      </svg>
+                      <div
+                        {...provided.dragHandleProps}
+                        className="absolute top-2 right-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-white/90 text-neutral-500 shadow-sm transition hover:bg-white hover:text-neutral-700 active:cursor-grabbing"
+                        aria-label={t('dragHandleAria')}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <circle cx="9" cy="6" r="1.5" />
+                          <circle cx="15" cy="6" r="1.5" />
+                          <circle cx="9" cy="12" r="1.5" />
+                          <circle cx="15" cy="12" r="1.5" />
+                          <circle cx="9" cy="18" r="1.5" />
+                          <circle cx="15" cy="18" r="1.5" />
+                        </svg>
+                      </div>
+                      <QualiphotoCard
+                        imageUrl={buildImageUrl(ged)}
+                        title={ged.title || t('noTitle')}
+                        description={ged.description}
+                        author={ged.author}
+                        chantier={ged.chantier ?? ged.categorie}
+                        createdAt={formatDisplayDate(ged.created_at)}
+                        onClick={() => onCardClick(ged)}
+                        isVideo={isVideoUrl(ged.url)}
+                        isAudio={isAudioUrl(ged.url)}
+                      />
                     </div>
-                    <QualiphotoCard
-                      imageUrl={buildImageUrl(ged)}
-                      title={ged.title || t('noTitle')}
-                      description={ged.description}
-                      author={ged.author}
-                      chantier={ged.chantier ?? ged.categorie}
-                      createdAt={formatDisplayDate(ged.created_at)}
-                      onClick={() => onCardClick(ged)}
-                      isVideo={isVideoUrl(ged.url)}
-                      isAudio={isAudioUrl(ged.url)}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
+                  )}
+                </Draggable>
+              ))
+            )}
             {droppableProvided.placeholder}
           </section>
         )}

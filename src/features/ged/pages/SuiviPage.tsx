@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
 import { getGeds } from '../services/ged.service';
 import type { GedItem } from '../types/ged.types';
+import type { GedParalleleItem } from '../types/gedParallele.types';
 import { useMoveGedToFolder } from '../hooks/useMoveGedToFolder';
 import {
   QUALIPHOTO_KIND,
@@ -21,10 +22,28 @@ import {
   SuiviLeftColumn,
   SuiviRightContent,
 } from '../suivi';
+import { resolveGedForSlot } from '../suivi/utils';
+
+function toDateOnly(isoOrDateStr: string): string {
+  if (!isoOrDateStr) return '';
+  const d = new Date(isoOrDateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export const SuiviPage: React.FC = () => {
   const { t } = useTranslation('qualiphotoPage');
-  const { selectedChantier, selectedFolder, refreshTrigger } = useNavbarFilters();
+  const {
+    selectedChantier,
+    selectedFolder,
+    selectedAuthorId,
+    dateDebut,
+    dateFin,
+    refreshTrigger,
+  } = useNavbarFilters();
 
   const [items, setItems] = useState<GedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,15 +89,33 @@ export const SuiviPage: React.FC = () => {
     };
   }, [fetchAllGeds]);
 
+  /** Apply advanced filters: author, date range (inclusive), chantier (when selected). */
+  const filteredByFilters = useMemo(() => {
+    return items.filter((ged) => {
+      if (selectedAuthorId != null && selectedAuthorId !== '') {
+        const authorId = ged.idauthor ?? (ged as { id_author?: string }).id_author;
+        if (String(authorId ?? '') !== String(selectedAuthorId)) return false;
+      }
+      const gedDateOnly = toDateOnly(ged.created_at);
+      if (dateDebut && gedDateOnly < dateDebut) return false;
+      if (dateFin && gedDateOnly > dateFin) return false;
+      if (selectedChantier?.title != null && selectedChantier.title !== '') {
+        const gedChantier = ged.chantier ?? ged.categorie ?? '';
+        if (gedChantier !== selectedChantier.title) return false;
+      }
+      return true;
+    });
+  }, [items, selectedAuthorId, dateDebut, dateFin, selectedChantier?.title]);
+
   const leftImageItems = useMemo(
     () =>
-      items.filter(
+      filteredByFilters.filter(
         (item) =>
           item.url &&
           isImageOrVideoUrl(item.url) &&
           isUnassignedIdsource(item.idsource),
       ),
-    [items],
+    [filteredByFilters],
   );
 
   const folderId = selectedFolder?.id ?? null;
@@ -124,6 +161,15 @@ export const SuiviPage: React.FC = () => {
     folderId,
     onSuccess: handleMoveSuccess,
   });
+
+  /** Resolve the real GED (by id1/id2 or fetch) and open the detail modal. Uses ged.id for API calls, not idsource. */
+  const handleSlotClick = useCallback(
+    async (row: GedParalleleItem, slot: 1 | 2) => {
+      const ged = await resolveGedForSlot(row, slot, folderId);
+      if (ged) setSelectedGed(ged);
+    },
+    [folderId],
+  );
 
   const { onDragEnd, slotUpdateInProgress } = useSuiviDragDrop({
     folderId,
@@ -201,13 +247,12 @@ export const SuiviPage: React.FC = () => {
             )}
             <SuiviRightContent
               selectedFolder={selectedFolder}
-              folderId={folderId}
               paralleleItems={paralleleItems}
               paralleleLoading={paralleleLoading}
               paralleleError={paralleleError}
               slotUpdateInProgress={slotUpdateInProgress}
               t={tWithFallback}
-              onSlotClick={setSelectedGed}
+              onSlotClick={handleSlotClick}
             />
           </section>
           {slotUpdateInProgress && (

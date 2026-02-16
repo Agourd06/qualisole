@@ -8,6 +8,7 @@ import { generateQualiphotoPdf } from '../utils/qualiphotoPdf';
 import { getMediaType } from '../utils/qualiphotoHelpers';
 import { useAssociatedGeds } from '../hooks/useAssociatedGeds';
 import { AssociatedGedsList } from './AssociatedGedsList';
+import { FullScreenImageZoom } from '../../../components/ui/FullScreenImageZoom';
 import type { GedItem } from '../types/ged.types';
 
 function formatDisplayDate(iso: string): string {
@@ -45,7 +46,6 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
   const { t } = useTranslation('qualiphotoModal');
 
   const [isImageFullscreen, setIsImageFullscreen] = useState(false);
-  const [fullscreenZoom, setFullscreenZoom] = useState(1);
   const [titleValue, setTitleValue] = useState('');
   const [descriptionValue, setDescriptionValue] = useState('');
   const [titleEditEnabled, setTitleEditEnabled] = useState(false);
@@ -77,27 +77,12 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
 
   useEffect(() => {
     if (!isImageFullscreen) return;
-    setFullscreenZoom(1);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
   }, [isImageFullscreen]);
-
-  const handleFullscreenZoomIn = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setFullscreenZoom((z) => Math.min(4, z + 0.5));
-  }, []);
-  const handleFullscreenZoomOut = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setFullscreenZoom((z) => Math.max(0.5, z - 0.5));
-  }, []);
-  const handleFullscreenWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    if (e.deltaY < 0) setFullscreenZoom((z) => Math.min(4, z + 0.15));
-    else setFullscreenZoom((z) => Math.max(0.5, z - 0.15));
-  }, []);
 
   const handleSave = async () => {
     if (!ged) return;
@@ -246,43 +231,43 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
         </header>
 
         <div className="flex-1 overflow-y-auto">
-
-          {/* Media – full width of modal */}
-          <section className="w-full px-6 py-4">
-            <div className="w-full overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
-              <div className="mb-2 flex items-center gap-2 px-2">
-                <span
-                  className="inline-flex rounded-md bg-neutral-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700"
-                  aria-hidden
-                >
-                  {isImage && t('mediaTypeImage')}
-                  {isVideo && t('mediaTypeVideo')}
-                  {isAudio && t('mediaTypeAudio')}
-                </span>
-              </div>
-              <div className="group relative flex w-full items-center justify-center overflow-hidden bg-neutral-100">
+          {/* Main content: image 45% | gap 10% | description 45% – same top/bottom alignment */}
+          <div className="flex flex-col gap-4 px-6 py-4 md:flex-row md:items-stretch md:gap-[10%] md:px-8 md:py-6 md:min-h-[420px]">
+            {/* Media – 45% width, stretches to match description height */}
+            <section className="flex w-full flex-col md:w-[45%] md:shrink-0 md:min-h-0">
+            <div className="mb-2 flex items-center gap-2 px-1">
+              <span
+                className="inline-flex rounded-md bg-neutral-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700"
+                aria-hidden
+              >
+                {isImage && t('mediaTypeImage')}
+                {isVideo && t('mediaTypeVideo')}
+                {isAudio && t('mediaTypeAudio')}
+              </span>
+            </div>
+            <div className="group relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
                 {isImage && (
                   <button
                     type="button"
                     onClick={() => setIsImageFullscreen(true)}
-                    className="flex w-full cursor-zoom-in items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset"
+                    className="flex h-full w-full cursor-zoom-in items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset"
                     aria-label={t('enlargeImageAria')}
                   >
                     <img
                       src={imageUrl}
                       alt={cardTitle}
-                      className="w-full object-contain max-h-[65vh]"
+                      className="h-full w-full object-cover"
                       draggable={false}
                     />
                   </button>
                 )}
                 {isVideo && (
-                  <div className="flex w-full flex-col">
+                  <div className="flex h-full w-full flex-col">
                     <video
                       src={imageUrl}
                       controls
                       playsInline
-                      className="w-full rounded-b-xl object-contain bg-neutral-900 shadow-md max-h-[65vh]"
+                      className="h-full w-full rounded-b-xl object-cover bg-neutral-900 shadow-md"
                       aria-label={cardTitle}
                     />
                     <div className="flex justify-between items-center gap-2 px-4 py-2 text-xs text-neutral-600 bg-white/80">
@@ -292,7 +277,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                   </div>
                 )}
                 {isAudio && (
-                  <div className="flex w-full flex-col items-center justify-center gap-4 p-6">
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
                     <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary">
                       <svg className="h-10 w-10" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                         <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
@@ -326,80 +311,12 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                   </div>
                 )}
               </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Fullscreen image overlay with zoom */}
-          {isImage && isImageFullscreen && (
-            <div
-              className="fixed inset-0 z-[60] flex flex-col bg-black/90"
-              role="dialog"
-              aria-modal="true"
-              aria-label={t('fullscreenAria')}
-            >
-              <button
-                type="button"
-                onClick={() => setIsImageFullscreen(false)}
-                className="absolute inset-0 cursor-default z-0"
-                aria-hidden
-              />
-              <div
-                className="flex-1 overflow-auto flex items-center justify-center min-h-0 p-4"
-                onWheel={handleFullscreenWheel}
-                role="img"
-                aria-label={cardTitle}
-              >
-                <img
-                  src={imageUrl}
-                  alt={cardTitle}
-                  className="relative z-10 max-h-full max-w-full object-contain select-none pointer-events-none"
-                  style={{ transform: `scale(${fullscreenZoom})`, transformOrigin: 'center' }}
-                  draggable={false}
-                />
-              </div>
-              <div className="flex items-center justify-center gap-3 pb-6 pt-2 z-20">
-                <button
-                  type="button"
-                  onClick={handleFullscreenZoomOut}
-                  className="rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
-                  aria-label={t('zoomOutAria')}
-                  disabled={fullscreenZoom <= 0.5}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
-                  </svg>
-                </button>
-                <span className="min-w-[4rem] text-center text-sm font-medium text-white/90">
-                  {Math.round(fullscreenZoom * 100)}%
-                </span>
-                <button
-                  type="button"
-                  onClick={handleFullscreenZoomIn}
-                  className="rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
-                  aria-label={t('zoomInAria')}
-                  disabled={fullscreenZoom >= 4}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsImageFullscreen(false)}
-                  className="rounded-full bg-white/15 p-3 text-white transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/50 ml-2"
-                  aria-label={t('closeAria')}
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Description – full width, primary border */}
-          <section className="w-full px-6 py-4">
-            <div className="w-full min-h-[200px] rounded-xl border-2 border-primary/70 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
+          {/* Description – 45% width, stretches to match image height */}
+          <section className="flex w-full flex-col md:w-[45%] md:shrink-0 md:min-h-0">
+            <div className="hidden md:mb-2 md:block md:h-9 md:shrink-0" aria-hidden />
+            <div className="flex min-h-[200px] flex-1 flex-col rounded-xl border-2 border-primary/70 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary md:min-h-0">
               <RichTextEditor
                 key={`${ged.id}-${editorKey}`}
                 value={descriptionValue}
@@ -408,18 +325,31 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                 rows={6}
                 readOnly={!descriptionEditEnabled}
                 showCharCount={true}
-                className="w-full"
+                className="h-full min-h-0 w-full flex-1"
               />
             </div>
           </section>
+          </div>
 
-          {/* Associated GEDs – as before */}
+          {/* Fullscreen image overlay with zoom */}
+          {isImage && isImageFullscreen && (
+            <FullScreenImageZoom
+              src={imageUrl}
+              alt={cardTitle}
+              onClose={() => setIsImageFullscreen(false)}
+              ariaLabel={t('fullscreenAria')}
+            />
+          )}
+
+          {/* Associated GEDs – full width below the two columns */}
+          <div className="px-6 py-4 md:px-8">
           <AssociatedGedsList
             items={associatedOnlyThisGed}
             loading={associatedLoading}
             error={associatedError}
             title={t('associatedGedsTitle')}
           />
+          </div>
         </div>
 
         {/* Footer – Save, Reset, Generate PDF */}
