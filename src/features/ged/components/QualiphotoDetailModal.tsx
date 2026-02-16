@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Modal } from '../../../components/ui/Modal';
 import { RichTextEditor } from '../../../components/inputs/RichTextEditor';
 import { useTranslation } from 'react-i18next';
-import { getStoredAuth } from '../../../utils/authStorage';
 import { updateGed } from '../services/ged.service';
 import { generateQualiphotoPdf } from '../utils/qualiphotoPdf';
+import { fetchImageAsDataUrl } from '../utils/gedExportUtils';
 import { getMediaType } from '../utils/qualiphotoHelpers';
 import { useAssociatedGeds } from '../hooks/useAssociatedGeds';
 import { AssociatedGedsList } from './AssociatedGedsList';
@@ -128,23 +128,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
       let imageDataUrl: string | null = null;
       const mediaType = getMediaType(ged.url);
       if (mediaType === 'image') {
-        try {
-          const { token } = getStoredAuth();
-          const res = await fetch(imageUrl, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          if (res.ok) {
-            const blob = await res.blob();
-            imageDataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch {
-          // PDF will be generated without image if fetch fails (e.g. CORS)
-        }
+        imageDataUrl = await fetchImageAsDataUrl(imageUrl);
       }
       // For video/audio, imageDataUrl stays null; PDF shows title/author/description only
       const photoDate = formatDisplayDate(ged.created_at);

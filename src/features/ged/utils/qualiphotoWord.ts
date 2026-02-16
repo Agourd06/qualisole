@@ -12,6 +12,8 @@ import {
   WidthType,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
+import { dataUrlToUint8Array } from './gedExportUtils';
+import { htmlToSegments, DEFAULT_DESC_COLOR } from './htmlToSegments';
 
 function stripHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
@@ -21,13 +23,26 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function dataUrlToArrayBuffer(dataUrl: string): { data: ArrayBuffer; type: 'png' | 'jpg' } {
-  const [header, base64] = dataUrl.split(',');
-  const type = header?.includes('png') ? 'png' : 'jpg';
-  const binary = atob(base64 ?? '');
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return { data: bytes.buffer, type };
+/** Build TextRun children for description with HTML color support. */
+function descriptionToTextRuns(html: string, size = 18): TextRun[] {
+  const segments = htmlToSegments(html);
+  const hasColor = segments.some((s) => s.color);
+  if (!hasColor) {
+    const plain = stripHtml(html).trim().slice(0, 2000) || '—';
+    return [new TextRun({ text: plain, size, color: DEFAULT_DESC_COLOR })];
+  }
+  const runs = segments
+    .map((seg) => {
+      const text = seg.text.trim();
+      if (!text) return null;
+      return new TextRun({
+        text: text.slice(0, 2000),
+        size,
+        color: seg.color || DEFAULT_DESC_COLOR,
+      });
+    })
+    .filter((r): r is TextRun => r !== null);
+  return runs.length > 0 ? runs : [new TextRun({ text: '—', size, color: DEFAULT_DESC_COLOR })];
 }
 
 const IMAGE_WIDTH = 200;
@@ -97,7 +112,7 @@ export async function generateFolderGedsTableWord(
     const leftParagraphs: Paragraph[] = [];
     if (row.imageDataUrl) {
       try {
-        const { data, type } = dataUrlToArrayBuffer(row.imageDataUrl);
+        const { data, type } = dataUrlToUint8Array(row.imageDataUrl);
         leftParagraphs.push(
           new Paragraph({
             children: [
@@ -129,13 +144,7 @@ export async function generateFolderGedsTableWord(
         spacing: { after: 80 },
       }),
       new Paragraph({
-        children: [
-          new TextRun({
-            text: stripHtml(row.description || '').slice(0, 2000) || '—',
-            size: 18,
-            color: '374151',
-          }),
-        ],
+        children: descriptionToTextRuns(row.description || ''),
       }),
     ];
 

@@ -13,6 +13,8 @@ import {
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
 import type { SuiviPairRow } from './suiviExportPdf';
+import { dataUrlToUint8Array } from './gedExportUtils';
+import { htmlToSegments, DEFAULT_DESC_COLOR } from './htmlToSegments';
 
 export interface SuiviExportWordOptions {
   introduction?: string | null;
@@ -22,15 +24,6 @@ export interface SuiviExportWordOptions {
 function stripHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function dataUrlToArrayBuffer(dataUrl: string): { data: ArrayBuffer; type: 'png' | 'jpg' } {
-  const [header, base64] = dataUrl.split(',');
-  const type = header?.includes('png') ? 'png' : 'jpg';
-  const binary = atob(base64 ?? '');
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return { data: bytes.buffer, type };
 }
 
 const IMAGE_WIDTH = 180;
@@ -71,7 +64,7 @@ function cellTableForRow(row: FolderGedRow | null): Table {
   } else {
     if (row.imageDataUrl) {
       try {
-        const { data, type } = dataUrlToArrayBuffer(row.imageDataUrl);
+        const { data, type } = dataUrlToUint8Array(row.imageDataUrl);
         imageParagraphs.push(
           new Paragraph({
             children: [
@@ -102,15 +95,25 @@ function cellTableForRow(row: FolderGedRow | null): Table {
         spacing: { after: 60 },
       }),
     );
+    const descSegments = htmlToSegments(row.description || '');
+    const descHasColor = descSegments.some((s) => s.color);
+    const descRuns =
+      descHasColor && descSegments.length > 0
+        ? descSegments
+            .map((seg) => {
+              const t = seg.text.trim();
+              if (!t) return null;
+              return new TextRun({
+                text: t.slice(0, 800),
+                size: 18,
+                color: seg.color || DEFAULT_DESC_COLOR,
+              });
+            })
+            .filter((r): r is TextRun => r !== null)
+        : [new TextRun({ text: (stripHtml(row.description || '').slice(0, 800) || '—'), size: 18, color: DEFAULT_DESC_COLOR })];
     textParagraphs.push(
       new Paragraph({
-        children: [
-          new TextRun({
-            text: stripHtml(row.description || '').slice(0, 800) || '—',
-            size: 18,
-            color: '374151',
-          }),
-        ],
+        children: descRuns.length > 0 ? descRuns : [new TextRun({ text: '—', size: 18, color: DEFAULT_DESC_COLOR })],
       }),
     );
   }

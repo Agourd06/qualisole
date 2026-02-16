@@ -7,7 +7,7 @@ import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../uti
 import { filterFolderImageGeds } from '../utils/folderGedFilter';
 import { generateFolderGedsTablePdf } from '../utils/qualiphotoPdf';
 import { generateFolderGedsTableWord } from '../utils/qualiphotoWord';
-import { getStoredAuth } from '../../../utils/authStorage';
+import { fetchImageAsDataUrl } from '../utils/gedExportUtils';
 import type { GedItem } from '../types/ged.types';
 
 const DROPPABLE_RIGHT = 'assigned';
@@ -132,27 +132,10 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   const [folderWordGenerating, setFolderWordGenerating] = useState(false);
 
   const buildRowsForExport = useCallback(async () => {
-    const { token } = getStoredAuth();
     return Promise.all(
       selectedForPdf.map(async (ged) => {
-        let imageDataUrl: string | null = null;
-        try {
-          const url = buildImageUrl(ged);
-          const res = await fetch(url, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          if (res.ok) {
-            const blob = await res.blob();
-            imageDataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch {
-          // leave null
-        }
+        const url = buildImageUrl(ged);
+        const imageDataUrl = url ? await fetchImageAsDataUrl(url) : null;
         return {
           title: ged.title ?? '',
           description: ged.description ?? '',

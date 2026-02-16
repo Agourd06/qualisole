@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { htmlToSegments, hexToRgb } from './htmlToSegments';
 
 /** Blue accent (report style, like IMAGE DATA REPORT). Customize via theme. */
 const BLUE = [0, 82, 155] as [number, number, number];
@@ -17,10 +18,10 @@ const PDF_CONFIG = {
     separatorHeightMm: 0.8,
     marginBottomMm: 14,
   },
-  /** Left column: image */
+  /** Centered image block */
   imageCol: {
-    widthMm: 75,
-    maxHeightMm: 95,
+    maxWidthMm: 120,
+    maxHeightMm: 100,
   },
   /** Right column: data list */
   dataCol: {
@@ -104,22 +105,16 @@ export async function generateQualiphotoPdf(
   const margin = PDF_CONFIG.page.marginMm;
   const marginTop = PDF_CONFIG.page.marginTopMm;
   const contentWidth = pageWidth - 2 * margin;
+  const maxY = pageHeight - margin - 15;
   let y = marginTop;
 
-  // —— Header: Title (left) + Report Date (right) ——
+  // —— Header: Centered title only ——
   const reportTitle = (data.title.trim() || 'IMAGE DATA REPORT').toUpperCase();
   doc.setFontSize(PDF_CONFIG.header.titleFontSize);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...BLUE);
-  doc.text(reportTitle, margin, y + 5);
-
-  doc.setFontSize(PDF_CONFIG.header.reportDateFontSize);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...BLACK);
-  const pdfGenerationDate = formatPdfDate(new Date());
-  const reportDateText = `Report Date: ${pdfGenerationDate}`;
-  doc.text(reportDateText, pageWidth - margin - doc.getTextWidth(reportDateText), y + 5);
-
+  const titleW = doc.getTextWidth(reportTitle);
+  doc.text(reportTitle, (pageWidth - titleW) / 2, y + 5);
   y += 10;
 
   // —— Blue separator line ——
@@ -128,70 +123,49 @@ export async function generateQualiphotoPdf(
   doc.line(margin, y, pageWidth - margin, y);
   y += PDF_CONFIG.header.separatorHeightMm + PDF_CONFIG.header.marginBottomMm;
 
-  const rowStartY = y;
-  const colGap = 10;
-  const imageColW = PDF_CONFIG.imageCol.widthMm;
-  const dataColX = margin + imageColW + colGap;
-
-  // —— Left column: Image ——
-  let imageBottomY = rowStartY;
+  // —— Centered image ——
+  const imgBlockY = y;
   if (data.imageDataUrl) {
     try {
       const { w: imgW, h: imgH } = await loadImageDimensions(data.imageDataUrl);
       const aspect = imgH / imgW;
-      let fitW = imageColW;
+      let fitW = Math.min(PDF_CONFIG.imageCol.maxWidthMm, contentWidth);
       let fitH = fitW * aspect;
       if (fitH > PDF_CONFIG.imageCol.maxHeightMm) {
         fitH = PDF_CONFIG.imageCol.maxHeightMm;
         fitW = fitH / aspect;
       }
-      const imgX = margin + (imageColW - fitW) / 2;
+      const imgX = margin + (contentWidth - fitW) / 2;
       const format = data.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      doc.addImage(data.imageDataUrl, format, imgX, rowStartY, fitW, fitH, undefined, 'FAST');
-      imageBottomY = rowStartY + fitH;
+      doc.addImage(data.imageDataUrl, format, imgX, imgBlockY, fitW, fitH, undefined, 'FAST');
+      y = imgBlockY + fitH;
     } catch {
-      imageBottomY = rowStartY + 20;
+      doc.setFontSize(10);
+      doc.setTextColor(...GRAY);
+      doc.text('No image', margin + contentWidth / 2 - doc.getTextWidth('No image') / 2, imgBlockY + 15);
+      y = imgBlockY + 25;
     }
   } else {
     doc.setFontSize(10);
     doc.setTextColor(...GRAY);
-    doc.text('No image', margin + imageColW / 2 - doc.getTextWidth('No image') / 2, rowStartY + 15);
-    imageBottomY = rowStartY + 25;
+    doc.text('No image', margin + contentWidth / 2 - doc.getTextWidth('No image') / 2, imgBlockY + 15);
+    y = imgBlockY + 25;
   }
 
-  // —— Image date (next to image, in left column) ——
+  // —— Author and date under image (centered) ——
+  y += 4;
   doc.setFontSize(PDF_CONFIG.dataCol.valueFontSize);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY);
-  const imageDateText = `Image date: ${data.publishedDate}`;
-  doc.text(imageDateText, margin, imageBottomY + 5);
-  imageBottomY += 8;
+  const metaParts = [data.author, `Image date: ${data.publishedDate}`].filter(Boolean);
+  const metaLine = metaParts.length ? metaParts.join('  ·  ') : `Image date: ${data.publishedDate}`;
+  const metaW = doc.getTextWidth(metaLine);
+  doc.text(metaLine, margin + (contentWidth - metaW) / 2, y + 4);
+  y += 12;
 
-  // —— Right column: Data (Image Overview style) ——
-  doc.setFontSize(PDF_CONFIG.sectionHeading.fontSize);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...BLUE);
-  doc.text('Image Overview', dataColX, y + 5);
-  y += 5 + PDF_CONFIG.dataCol.gapMm;
-
-  doc.setFontSize(PDF_CONFIG.dataCol.valueFontSize);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...BLACK);
-  const lineH = PDF_CONFIG.dataCol.valueFontSize * 0.45;
-  const bullets = [
-    `Author: ${data.author ?? '—'}`,
-  ];
-  bullets.forEach((line) => {
-    doc.text(`• ${line}`, dataColX, y + lineH);
-    y += lineH + PDF_CONFIG.dataCol.gapMm;
-  });
-
-  const rowEndY = Math.max(imageBottomY, y) + 4;
-  y = rowEndY;
-
-  // —— Description section (full width, below image + data) ——
-  const descriptionText = stripHtml(data.description);
-  if (descriptionText) {
+  // —— Description section (full width, with HTML color support) ——
+  const descriptionHtml = data.description?.trim() ?? '';
+  if (descriptionHtml) {
     y += PDF_CONFIG.description.headingMarginTopMm;
     doc.setFontSize(PDF_CONFIG.sectionHeading.fontSize);
     doc.setFont('helvetica', 'bold');
@@ -201,20 +175,60 @@ export async function generateQualiphotoPdf(
 
     doc.setFontSize(PDF_CONFIG.description.fontSize);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...PDF_CONFIG.description.color);
     const lineHeightMm =
       PDF_CONFIG.description.fontSize * 0.35 * PDF_CONFIG.description.lineHeight;
-    const descLines = doc.splitTextToSize(descriptionText, contentWidth);
-    const maxY = pageHeight - margin - 15;
-    for (let i = 0; i < descLines.length; i++) {
-      if (y + lineHeightMm > maxY) {
-        doc.addPage();
-        y = margin;
+
+    const segments = htmlToSegments(descriptionHtml);
+    const hasFormatting = segments.some((s) => s.color || s.backgroundColor);
+    if (hasFormatting && segments.length > 0) {
+      for (const seg of segments) {
+        const lines = doc.splitTextToSize(seg.text, contentWidth);
+        const segColor = seg.color ? hexToRgb(seg.color) : PDF_CONFIG.description.color;
+        const segBg = seg.backgroundColor ? hexToRgb(seg.backgroundColor) : null;
+        for (const line of lines) {
+          if (y + lineHeightMm > maxY) {
+            doc.addPage();
+            y = margin;
+          }
+          if (segBg) {
+            doc.setFillColor(...segBg);
+            const lineW = doc.getTextWidth(line);
+            const lineH = PDF_CONFIG.description.fontSize * 0.4;
+            doc.rect(margin, y, lineW, lineH, 'F');
+          }
+          doc.setTextColor(...segColor);
+          doc.text(line, margin, y + PDF_CONFIG.description.fontSize * 0.35);
+          y += lineHeightMm;
+        }
       }
-      doc.text(descLines[i], margin, y + PDF_CONFIG.description.fontSize * 0.35);
-      y += lineHeightMm;
+    } else {
+      const plainText = stripHtml(descriptionHtml);
+      const descLines = doc.splitTextToSize(plainText, contentWidth);
+      doc.setTextColor(...PDF_CONFIG.description.color);
+      for (let i = 0; i < descLines.length; i++) {
+        if (y + lineHeightMm > maxY) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(descLines[i], margin, y + PDF_CONFIG.description.fontSize * 0.35);
+        y += lineHeightMm;
+      }
     }
   }
+
+  // —— Report Date as signature (after description) ——
+  y += 14;
+  if (y > maxY - 20) {
+    doc.addPage();
+    y = margin;
+  }
+  const pdfGenerationDate = formatPdfDate(new Date());
+  const reportDateText = `Report Date: ${pdfGenerationDate}`;
+  doc.setFontSize(PDF_CONFIG.header.reportDateFontSize);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY);
+  const reportDateW = doc.getTextWidth(reportDateText);
+  doc.text(reportDateText, margin + (contentWidth - reportDateW) / 2, y + 5);
 
   const name = filename || `qualiphoto-${Date.now()}.pdf`;
   doc.save(name);

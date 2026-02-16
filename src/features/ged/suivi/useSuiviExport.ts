@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { getStoredAuth } from '../../../utils/authStorage';
 import { formatDisplayDate, isImageUrl } from '../utils/qualiphotoHelpers';
 import type { GedParalleleItem } from '../types/gedParallele.types';
 import type { FolderGedRow } from '../utils/qualiphotoPdf';
@@ -15,25 +14,7 @@ import {
   generateSuiviBothWord,
 } from '../utils/suiviExportWord';
 import { buildMediaUrl } from './utils';
-
-async function fetchImageDataUrl(fullUrl: string): Promise<string | null> {
-  const { token } = getStoredAuth();
-  try {
-    const res = await fetch(fullUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
+import { fetchImageAsDataUrl } from '../utils/gedExportUtils';
 
 function toFolderGedRow(
   title: string | null,
@@ -115,7 +96,7 @@ export function useSuiviExport({
       const fullUrl = buildMediaUrl(item.url1);
       let imageDataUrl: string | null = null;
       if (fullUrl && isImageUrl(item.url1)) {
-        imageDataUrl = await fetchImageDataUrl(fullUrl);
+        imageDataUrl = await fetchImageAsDataUrl(fullUrl);
       }
       rows.push(
         toFolderGedRow(
@@ -136,7 +117,7 @@ export function useSuiviExport({
       const fullUrl = buildMediaUrl(item.url2);
       let imageDataUrl: string | null = null;
       if (fullUrl && isImageUrl(item.url2)) {
-        imageDataUrl = await fetchImageDataUrl(fullUrl);
+        imageDataUrl = await fetchImageAsDataUrl(fullUrl);
       }
       rows.push(
         toFolderGedRow(
@@ -160,7 +141,7 @@ export function useSuiviExport({
         const fullUrl = buildMediaUrl(item.url1);
         let imageDataUrl: string | null = null;
         if (fullUrl && isImageUrl(item.url1)) {
-          imageDataUrl = await fetchImageDataUrl(fullUrl);
+          imageDataUrl = await fetchImageAsDataUrl(fullUrl);
         }
         avant = toFolderGedRow(
           item.title1,
@@ -174,7 +155,7 @@ export function useSuiviExport({
         const fullUrl = buildMediaUrl(item.url2);
         let imageDataUrl: string | null = null;
         if (fullUrl && isImageUrl(item.url2)) {
-          imageDataUrl = await fetchImageDataUrl(fullUrl);
+          imageDataUrl = await fetchImageAsDataUrl(fullUrl);
         }
         apres = toFolderGedRow(
           item.title2,
