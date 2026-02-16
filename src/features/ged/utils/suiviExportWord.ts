@@ -10,11 +10,12 @@ import {
   AlignmentType,
   BorderStyle,
   WidthType,
+  HighlightColor,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
 import type { SuiviPairRow } from './suiviExportPdf';
 import { dataUrlToUint8Array } from './gedExportUtils';
-import { htmlToSegments, DEFAULT_DESC_COLOR } from './htmlToSegments';
+import { htmlToSegments, DEFAULT_DESC_COLOR, hexToWordHighlight } from './htmlToSegments';
 
 export interface SuiviExportWordOptions {
   introduction?: string | null;
@@ -96,17 +97,29 @@ function cellTableForRow(row: FolderGedRow | null): Table {
       }),
     );
     const descSegments = htmlToSegments(row.description || '');
-    const descHasColor = descSegments.some((s) => s.color);
+    const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor);
+    const highlightMap: Record<string, (typeof HighlightColor)[keyof typeof HighlightColor]> = {
+      yellow: HighlightColor.YELLOW,
+      red: HighlightColor.RED,
+      green: HighlightColor.GREEN,
+      blue: HighlightColor.BLUE,
+      cyan: HighlightColor.CYAN,
+      magenta: HighlightColor.MAGENTA,
+      lightGray: HighlightColor.LIGHT_GRAY,
+    };
     const descRuns =
-      descHasColor && descSegments.length > 0
+      descHasFormatting && descSegments.length > 0
         ? descSegments
             .map((seg) => {
               const t = seg.text.trim();
               if (!t) return null;
+              const h = seg.backgroundColor ? hexToWordHighlight(seg.backgroundColor) : undefined;
+              const highlight = h && highlightMap[h] ? highlightMap[h] : undefined;
               return new TextRun({
                 text: t.slice(0, 800),
                 size: 18,
                 color: seg.color || DEFAULT_DESC_COLOR,
+                highlight,
               });
             })
             .filter((r): r is TextRun => r !== null)

@@ -10,10 +10,11 @@ import {
   AlignmentType,
   BorderStyle,
   WidthType,
+  HighlightColor,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
 import { dataUrlToUint8Array } from './gedExportUtils';
-import { htmlToSegments, DEFAULT_DESC_COLOR } from './htmlToSegments';
+import { htmlToSegments, DEFAULT_DESC_COLOR, hexToWordHighlight } from './htmlToSegments';
 
 function stripHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
@@ -23,22 +24,34 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/** Build TextRun children for description with HTML color support. */
+/** Build TextRun children for description with HTML color and highlight support. */
 function descriptionToTextRuns(html: string, size = 18): TextRun[] {
   const segments = htmlToSegments(html);
-  const hasColor = segments.some((s) => s.color);
-  if (!hasColor) {
+  const hasFormatting = segments.some((s) => s.color || s.backgroundColor);
+  if (!hasFormatting) {
     const plain = stripHtml(html).trim().slice(0, 2000) || '—';
     return [new TextRun({ text: plain, size, color: DEFAULT_DESC_COLOR })];
   }
+  const highlightMap: Record<string, (typeof HighlightColor)[keyof typeof HighlightColor]> = {
+    yellow: HighlightColor.YELLOW,
+    red: HighlightColor.RED,
+    green: HighlightColor.GREEN,
+    blue: HighlightColor.BLUE,
+    cyan: HighlightColor.CYAN,
+    magenta: HighlightColor.MAGENTA,
+    lightGray: HighlightColor.LIGHT_GRAY,
+  };
   const runs = segments
     .map((seg) => {
       const text = seg.text.trim();
       if (!text) return null;
+      const highlightVal = seg.backgroundColor ? hexToWordHighlight(seg.backgroundColor) : undefined;
+      const highlight = highlightVal && highlightMap[highlightVal] ? highlightMap[highlightVal] : undefined;
       return new TextRun({
         text: text.slice(0, 2000),
         size,
         color: seg.color || DEFAULT_DESC_COLOR,
+        highlight,
       });
     })
     .filter((r): r is TextRun => r !== null);

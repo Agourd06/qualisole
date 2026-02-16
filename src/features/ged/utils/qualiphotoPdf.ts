@@ -183,21 +183,27 @@ export async function generateQualiphotoPdf(
     if (hasFormatting && segments.length > 0) {
       for (const seg of segments) {
         const lines = doc.splitTextToSize(seg.text, contentWidth);
-        const segColor = seg.color ? hexToRgb(seg.color) : PDF_CONFIG.description.color;
+        // For highlighted text: use black for readability; otherwise use segment color or default
+        const segColor = seg.backgroundColor
+          ? BLACK
+          : seg.color
+            ? hexToRgb(seg.color)
+            : PDF_CONFIG.description.color;
         const segBg = seg.backgroundColor ? hexToRgb(seg.backgroundColor) : null;
         for (const line of lines) {
           if (y + lineHeightMm > maxY) {
             doc.addPage();
             y = margin;
           }
+          const textY = y + PDF_CONFIG.description.fontSize * 0.35;
           if (segBg) {
             doc.setFillColor(...segBg);
             const lineW = doc.getTextWidth(line);
-            const lineH = PDF_CONFIG.description.fontSize * 0.4;
-            doc.rect(margin, y, lineW, lineH, 'F');
+            // Rect behind text: full line height, aligned with text baseline
+            doc.rect(margin, y, lineW, lineHeightMm - 0.5, 'F');
           }
           doc.setTextColor(...segColor);
-          doc.text(line, margin, y + PDF_CONFIG.description.fontSize * 0.35);
+          doc.text(line, margin, textY);
           y += lineHeightMm;
         }
       }

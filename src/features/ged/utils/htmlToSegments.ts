@@ -95,3 +95,32 @@ export function hexToRgb(hex: string): [number, number, number] {
 
 /** Default description color for PDF/Word (dark gray). */
 export const DEFAULT_DESC_COLOR = '374151';
+
+/** Map hex background color to Word HighlightColor. Returns undefined if no close match. */
+export function hexToWordHighlight(hex: string): string | undefined {
+  if (!hex || hex.length < 6) return undefined;
+  const h = hex.toLowerCase();
+  const map: Record<string, string> = {
+    ffff00: 'yellow',
+    fff000: 'yellow',
+    '00ff00': 'green',
+    '0000ff': 'blue',
+    ff0000: 'red',
+    'ff00ff': 'magenta',
+    '00ffff': 'cyan',
+    '808080': 'lightGray',
+    'c0c0c0': 'lightGray',
+  };
+  if (map[h]) return map[h];
+  // Fuzzy match: red family
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if (r > 200 && g < 100 && b < 100) return 'red';
+  if (r < 100 && g > 200 && b < 100) return 'green';
+  if (r < 100 && g < 100 && b > 200) return 'blue';
+  if (r > 200 && g > 200 && b < 100) return 'yellow';
+  if (r > 200 && g < 100 && b > 200) return 'magenta';
+  if (r < 100 && g > 200 && b > 200) return 'cyan';
+  return 'yellow'; // fallback
+}
