@@ -10,12 +10,12 @@ import {
   AlignmentType,
   BorderStyle,
   WidthType,
-  HighlightColor,
+  ShadingType,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
 import type { SuiviPairRow } from './suiviExportPdf';
 import { dataUrlToUint8Array } from './gedExportUtils';
-import { htmlToSegments, DEFAULT_DESC_COLOR, hexToWordHighlight } from './htmlToSegments';
+import { htmlToSegments, DEFAULT_DESC_COLOR, parseHtmlAlignment } from './htmlToSegments';
 
 export interface SuiviExportWordOptions {
   introduction?: string | null;
@@ -98,28 +98,29 @@ function cellTableForRow(row: FolderGedRow | null): Table {
     );
     const descSegments = htmlToSegments(row.description || '');
     const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor);
-    const highlightMap: Record<string, (typeof HighlightColor)[keyof typeof HighlightColor]> = {
-      yellow: HighlightColor.YELLOW,
-      red: HighlightColor.RED,
-      green: HighlightColor.GREEN,
-      blue: HighlightColor.BLUE,
-      cyan: HighlightColor.CYAN,
-      magenta: HighlightColor.MAGENTA,
-      lightGray: HighlightColor.LIGHT_GRAY,
+    const alignKey = parseHtmlAlignment(row.description || '');
+    const alignMap: Record<string, (typeof AlignmentType)[keyof typeof AlignmentType]> = {
+      left: AlignmentType.LEFT,
+      center: AlignmentType.CENTER,
+      right: AlignmentType.RIGHT,
     };
+    const HIGHLIGHT_TEXT_COLOR = '000000';
     const descRuns =
       descHasFormatting && descSegments.length > 0
         ? descSegments
             .map((seg) => {
               const t = seg.text.trim();
               if (!t) return null;
-              const h = seg.backgroundColor ? hexToWordHighlight(seg.backgroundColor) : undefined;
-              const highlight = h && highlightMap[h] ? highlightMap[h] : undefined;
+              const shading = seg.backgroundColor
+                ? { fill: seg.backgroundColor, type: ShadingType.SOLID }
+                : undefined;
+              const textColor =
+                seg.backgroundColor && !seg.color ? HIGHLIGHT_TEXT_COLOR : seg.color || DEFAULT_DESC_COLOR;
               return new TextRun({
                 text: t.slice(0, 800),
                 size: 18,
-                color: seg.color || DEFAULT_DESC_COLOR,
-                highlight,
+                color: textColor,
+                shading,
               });
             })
             .filter((r): r is TextRun => r !== null)
@@ -127,6 +128,7 @@ function cellTableForRow(row: FolderGedRow | null): Table {
     textParagraphs.push(
       new Paragraph({
         children: descRuns.length > 0 ? descRuns : [new TextRun({ text: '—', size: 18, color: DEFAULT_DESC_COLOR })],
+        alignment: alignMap[alignKey] ?? AlignmentType.LEFT,
       }),
     );
   }

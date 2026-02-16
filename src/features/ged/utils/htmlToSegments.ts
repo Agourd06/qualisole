@@ -96,6 +96,16 @@ export function hexToRgb(hex: string): [number, number, number] {
 /** Default description color for PDF/Word (dark gray). */
 export const DEFAULT_DESC_COLOR = '374151';
 
+/** Parse text-align from HTML (e.g. <p style="text-align: center">). */
+export function parseHtmlAlignment(html: string): 'left' | 'center' | 'right' {
+  if (!html || typeof html !== 'string') return 'left';
+  const centerMatch = /text-align\s*:\s*center/i.test(html);
+  const rightMatch = /text-align\s*:\s*right/i.test(html);
+  if (centerMatch) return 'center';
+  if (rightMatch) return 'right';
+  return 'left';
+}
+
 /** Map hex background color to Word HighlightColor. Returns undefined if no close match. */
 export function hexToWordHighlight(hex: string): string | undefined {
   if (!hex || hex.length < 6) return undefined;

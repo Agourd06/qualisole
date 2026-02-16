@@ -10,11 +10,11 @@ import {
   AlignmentType,
   BorderStyle,
   WidthType,
-  HighlightColor,
+  ShadingType,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
 import { dataUrlToUint8Array } from './gedExportUtils';
-import { htmlToSegments, DEFAULT_DESC_COLOR, hexToWordHighlight } from './htmlToSegments';
+import { htmlToSegments, DEFAULT_DESC_COLOR, parseHtmlAlignment } from './htmlToSegments';
 
 function stripHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
@@ -24,38 +24,50 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/** Build TextRun children for description with HTML color and highlight support. */
-function descriptionToTextRuns(html: string, size = 18): TextRun[] {
+const HIGHLIGHT_TEXT_COLOR = '000000'; // Black for readability when only highlight is applied
+
+/** Build TextRun children and alignment for description with HTML color and highlight support. */
+function descriptionToContent(html: string, size = 18): {
+  runs: TextRun[];
+  alignment: (typeof AlignmentType)[keyof typeof AlignmentType];
+} {
   const segments = htmlToSegments(html);
+  const alignKey = parseHtmlAlignment(html);
+  const alignMap: Record<string, (typeof AlignmentType)[keyof typeof AlignmentType]> = {
+    left: AlignmentType.LEFT,
+    center: AlignmentType.CENTER,
+    right: AlignmentType.RIGHT,
+  };
   const hasFormatting = segments.some((s) => s.color || s.backgroundColor);
   if (!hasFormatting) {
     const plain = stripHtml(html).trim().slice(0, 2000) || '—';
-    return [new TextRun({ text: plain, size, color: DEFAULT_DESC_COLOR })];
+    return {
+      runs: [new TextRun({ text: plain, size, color: DEFAULT_DESC_COLOR })],
+      alignment: alignMap[alignKey] ?? AlignmentType.LEFT,
+    };
   }
-  const highlightMap: Record<string, (typeof HighlightColor)[keyof typeof HighlightColor]> = {
-    yellow: HighlightColor.YELLOW,
-    red: HighlightColor.RED,
-    green: HighlightColor.GREEN,
-    blue: HighlightColor.BLUE,
-    cyan: HighlightColor.CYAN,
-    magenta: HighlightColor.MAGENTA,
-    lightGray: HighlightColor.LIGHT_GRAY,
-  };
   const runs = segments
     .map((seg) => {
       const text = seg.text.trim();
       if (!text) return null;
-      const highlightVal = seg.backgroundColor ? hexToWordHighlight(seg.backgroundColor) : undefined;
-      const highlight = highlightVal && highlightMap[highlightVal] ? highlightMap[highlightVal] : undefined;
+      // Use shading (fill) for background - keeps text color independent; highlight was overriding it
+      const shading = seg.backgroundColor
+        ? { fill: seg.backgroundColor, type: ShadingType.SOLID }
+        : undefined;
+      const textColor =
+        seg.backgroundColor && !seg.color ? HIGHLIGHT_TEXT_COLOR : seg.color || DEFAULT_DESC_COLOR;
       return new TextRun({
         text: text.slice(0, 2000),
         size,
-        color: seg.color || DEFAULT_DESC_COLOR,
-        highlight,
+        color: textColor,
+        shading,
       });
     })
     .filter((r): r is TextRun => r !== null);
-  return runs.length > 0 ? runs : [new TextRun({ text: '—', size, color: DEFAULT_DESC_COLOR })];
+  return {
+    runs: runs.length > 0 ? runs : [new TextRun({ text: '—', size, color: DEFAULT_DESC_COLOR })],
+    alignment: alignMap[alignKey] ?? AlignmentType.LEFT,
+  };
 }
 
 const IMAGE_WIDTH = 200;
@@ -156,9 +168,10 @@ export async function generateFolderGedsTableWord(
         children: [new TextRun({ text: (row.title || '—').trim(), bold: true, size: 22 })],
         spacing: { after: 80 },
       }),
-      new Paragraph({
-        children: descriptionToTextRuns(row.description || ''),
-      }),
+      (() => {
+        const { runs, alignment } = descriptionToContent(row.description || '');
+        return new Paragraph({ children: runs, alignment });
+      })(),
     ];
 
     tableRows.push(

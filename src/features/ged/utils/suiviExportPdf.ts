@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { generateFolderGedsTablePdf, type FolderGedRow } from './qualiphotoPdf';
+import { htmlToSegments, hexToRgb, parseHtmlAlignment } from './htmlToSegments';
 
 export type { FolderGedRow };
 
@@ -197,12 +198,69 @@ export async function generateSuiviBothPdf(
 
       doc.setFontSize(BOTH_PDF.descFontSize);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRAY);
-      const descText = stripHtml(cell.description || '').trim().slice(0, 300);
-      const descLines = doc.splitTextToSize(descText, textW);
-      for (let i = 0; i < Math.min(descLines.length, 4); i++) {
-        doc.text(descLines[i], textX, rightY + 4);
-        rightY += BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
+      const descSegments = htmlToSegments(cell.description || '');
+      const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor);
+      const descAlign = parseHtmlAlignment(cell.description || '');
+      const cellCenterX = textX + textW / 2;
+      const cellRightX = textX + textW;
+      const lineHeightDesc = BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
+      if (descHasFormatting && descSegments.length > 0) {
+        for (const seg of descSegments) {
+          const lines = doc.splitTextToSize(seg.text.slice(0, 300), textW);
+          const segColor = seg.backgroundColor
+            ? BLACK
+            : seg.color
+              ? hexToRgb(seg.color)
+              : GRAY;
+          const segBg = seg.backgroundColor ? hexToRgb(seg.backgroundColor) : null;
+          for (const line of lines) {
+            if (segBg) {
+              doc.setFillColor(...segBg);
+              const lineW = doc.getTextWidth(line);
+              const rectH = lineHeightDesc - 0.2;
+              const rectX =
+                descAlign === 'center'
+                  ? cellCenterX - lineW / 2
+                  : descAlign === 'right'
+                    ? cellRightX - lineW
+                    : textX;
+              doc.rect(rectX, rightY, lineW, rectH, 'F');
+            }
+            doc.setTextColor(...segColor);
+            const textOpts =
+              descAlign === 'center'
+                ? ({ align: 'center' } as const)
+                : descAlign === 'right'
+                  ? ({ align: 'right' } as const)
+                  : undefined;
+            doc.text(
+              line,
+              descAlign === 'center' ? cellCenterX : descAlign === 'right' ? cellRightX : textX,
+              rightY + 4,
+              textOpts,
+            );
+            rightY += lineHeightDesc;
+          }
+        }
+      } else {
+        const descText = stripHtml(cell.description || '').trim().slice(0, 300);
+        const descLines = doc.splitTextToSize(descText, textW);
+        doc.setTextColor(...GRAY);
+        for (let i = 0; i < Math.min(descLines.length, 4); i++) {
+          const textOpts =
+            descAlign === 'center'
+              ? ({ align: 'center' } as const)
+              : descAlign === 'right'
+                ? ({ align: 'right' } as const)
+                : undefined;
+          doc.text(
+            descLines[i],
+            descAlign === 'center' ? cellCenterX : descAlign === 'right' ? cellRightX : textX,
+            rightY + 4,
+            textOpts,
+          );
+          rightY += BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
+        }
       }
       return Math.max(imageBottom, rightY) + BOTH_PDF.cellPaddingMm;
     };
