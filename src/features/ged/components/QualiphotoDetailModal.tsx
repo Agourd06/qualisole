@@ -177,51 +177,54 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
       open={!!ged}
       onClose={onClose}
       titleId="qualiphoto-detail-title"
-      contentClassName="relative z-10 w-[90vw] min-h-[88vh] max-h-[92vh] overflow-auto rounded-2xl bg-white shadow-2xl focus:outline-none"
+      contentClassName="relative z-10 w-[90vw] min-h-[88vh] max-h-[92vh] overflow-auto rounded-xl bg-[#F9FAFB] shadow-[0_4px_24px_rgba(0,0,0,0.08)] focus:outline-none"
     >
-      <div className="flex min-h-[88vh] w-full flex-col bg-neutral-50/80">
-        {/* Very top: title input row + close button */}
-        <header className="sticky top-0 z-10 flex w-full items-center gap-3 border-b border-primary/20 bg-white/95 px-4 py-3 backdrop-blur-sm">
-          <div className="min-w-0 flex-1 flex items-center gap-2 rounded-xl border-2 border-primary/70 bg-white shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary">
+      <div className="flex min-h-[88vh] w-full flex-col">
+        {/* Header: centered title (30%) + close */}
+        <header className="sticky top-0 z-10 flex w-full items-center justify-between border-b border-[#E5E7EB] bg-white px-6 py-4">
+          <div className="flex-1" aria-hidden />
+          <div className="flex w-[30%] min-w-[180px] shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-primary/70 bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
             <input
               type="text"
               value={titleValue}
               onChange={(e) => setTitleValue(e.target.value)}
               disabled={!titleEditEnabled}
-              className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-center text-[0.9375rem] font-medium text-neutral-800 placeholder:text-neutral-400 disabled:bg-neutral-50 disabled:text-neutral-600 focus:outline-none focus:ring-0"
+              className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-center text-[0.9375rem] font-medium text-neutral-800 placeholder:text-neutral-400 disabled:bg-transparent disabled:text-neutral-600 focus:outline-none focus:ring-0"
               placeholder={t('defaultTitle')}
               aria-label={t('titleLabel')}
             />
             <button
               type="button"
               onClick={() => setTitleEditEnabled((e) => !e)}
-              className="shrink-0 rounded-r-xl p-3 text-neutral-500 transition hover:bg-neutral-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              className="shrink-0 rounded-r-lg p-2.5 text-neutral-400 transition-colors hover:bg-neutral-50 hover:text-neutral-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-inset"
               aria-label={t('updateAria')}
               title={t('updateAria')}
             >
               <PencilIcon className="h-4 w-4" />
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary"
-            aria-label={t('closeAria')}
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex flex-1 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              aria-label={t('closeAria')}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Main content: image 45% | gap 10% | description 45% – same top/bottom alignment */}
-          <div className="flex flex-col gap-4 px-6 py-4 md:flex-row md:items-stretch md:gap-[10%] md:px-8 md:py-6 md:min-h-[420px]">
-            {/* Media – 45% width, stretches to match description height */}
+          {/* Main content: image left | description right */}
+          <div className="flex flex-col gap-6 px-6 py-6 md:flex-row md:items-start md:gap-4 md:px-6 md:py-8">
+            {/* Media – 45% width (unchanged) */}
             <section className="flex w-full flex-col md:w-[45%] md:shrink-0 md:min-h-0">
-            <div className="mb-2 flex items-center gap-2 px-1">
+            <div className="flex h-7 shrink-0 items-center px-0.5 md:mb-2">
               <span
-                className="inline-flex rounded-md bg-neutral-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-700"
+                className="text-xs font-medium uppercase tracking-wider text-neutral-500"
                 aria-hidden
               >
                 {isImage && t('mediaTypeImage')}
@@ -229,29 +232,29 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                 {isAudio && t('mediaTypeAudio')}
               </span>
             </div>
-            <div className="group relative min-h-0 flex-1 overflow-hidden rounded-2xl bg-neutral-100 shadow-sm">
+            <div className="group relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
                 {isImage && (
                   <button
                     type="button"
                     onClick={() => setIsImageFullscreen(true)}
-                    className="flex h-full w-full cursor-zoom-in items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset"
+                    className="flex h-full w-full cursor-zoom-in items-center justify-center rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-inset"
                     aria-label={t('enlargeImageAria')}
                   >
                     <img
                       src={imageUrl}
                       alt={cardTitle}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-top overflow-hidden"
                       draggable={false}
                     />
                   </button>
                 )}
                 {isVideo && (
-                  <div className="flex h-full w-full flex-col">
+                  <div className="flex h-full w-full flex-col rounded-lg overflow-hidden">
                     <video
                       src={imageUrl}
                       controls
                       playsInline
-                      className="h-full w-full rounded-b-xl object-cover bg-neutral-900 shadow-md"
+                      className="h-full w-full object-cover object-top overflow-hidden bg-neutral-900"
                       aria-label={cardTitle}
                     />
                     <div className="flex justify-between items-center gap-2 px-4 py-2 text-xs text-neutral-600 bg-white/80">
@@ -297,19 +300,19 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               </div>
             </section>
 
-          {/* Description – 45% width, stretches to match image height */}
-          <section className="flex w-full flex-col md:w-[45%] md:shrink-0 md:min-h-0">
-            <div className="hidden md:mb-2 md:block md:h-9 md:shrink-0" aria-hidden />
-            <div className="flex min-h-[200px] flex-1 flex-col rounded-xl border-2 border-primary/70 overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary md:min-h-0">
+          {/* Description – flex-1 takes remaining space (image stays 45%), smaller gap = less empty space */}
+          <section className="flex w-full flex-col md:min-w-0 md:flex-1 md:shrink-0">
+            <div className="hidden h-7 shrink-0 md:mb-2 md:block" aria-hidden />
+            <div className="qualiphoto-modal-editor qualiphoto-modal-editor-focus w-full">
               <RichTextEditor
                 key={`${ged.id}-${editorKey}`}
                 value={descriptionValue}
                 onChange={setDescriptionValue}
                 placeholder={t('noDescription')}
-                rows={6}
+                rows={4}
                 readOnly={!descriptionEditEnabled}
                 showCharCount={true}
-                className="h-full min-h-0 w-full flex-1"
+                className="w-full"
               />
             </div>
           </section>
@@ -336,8 +339,8 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Footer – Save, Reset, Generate PDF */}
-        <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200/60 bg-white/95 px-6 py-4 backdrop-blur-sm">
+        {/* Footer – actions */}
+        <footer className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-4 border-t border-[#E5E7EB] bg-white px-6 py-4">
           <div className="min-w-0 flex-1">
             {saveError && (
               <p className="text-sm text-red-600" role="alert">
@@ -350,7 +353,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               type="button"
               onClick={handleGeneratePdf}
               disabled={pdfGenerating || saving}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="rounded-lg border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               {pdfGenerating ? t('generatingPdf') : t('generatePdf')}
             </button>
@@ -358,7 +361,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               type="button"
               onClick={handleReset}
               disabled={saving}
-              className="rounded-xl border-2 border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="rounded-lg border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               {t('reset')}
             </button>
@@ -366,7 +369,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-md transition hover:opacity-95 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-hover disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
             >
               {saving ? t('saving') : t('save')}
             </button>

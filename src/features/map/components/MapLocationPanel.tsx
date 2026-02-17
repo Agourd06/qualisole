@@ -61,7 +61,7 @@ export const MapLocationPanel: React.FC<MapLocationPanelProps> = ({
                     isVideoUrl(ged.url) ? (
                       <video
                         src={buildImageUrl(ged)}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover object-top"
                         preload="metadata"
                         muted
                         playsInline
@@ -75,7 +75,7 @@ export const MapLocationPanel: React.FC<MapLocationPanelProps> = ({
                       <img
                         src={buildImageUrl(ged)}
                         alt=""
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover object-top overflow-hidden"
                         loading="lazy"
                       />
                     )

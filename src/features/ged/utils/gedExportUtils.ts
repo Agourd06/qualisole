@@ -1,20 +1,13 @@
-import { getStoredAuth } from '../../../utils/authStorage';
-
 /**
- * Fetch an image as binary (Uint8Array) with auth.
- * Use this when embedding images in PDF/Word so the document is self-contained
- * and works when opened on any host (manager's machine, etc.).
- *
- * Bypasses CORS, cookies, and hosting differences by embedding raw binary.
+ * Fetch an image as binary (Uint8Array).
+ * No custom headers = no CORS preflight (avoids OPTIONS 405 when backend
+ * doesn't support it). Works if uploads are public or served without auth.
  */
 export async function fetchImageAsBinary(
   imageUrl: string,
 ): Promise<{ data: Uint8Array; type: 'jpg' | 'png' } | null> {
-  const { token } = getStoredAuth();
   try {
-    const res = await fetch(imageUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(imageUrl);
     if (!res.ok) return null;
     const buffer = await res.arrayBuffer();
     const data = new Uint8Array(buffer);
@@ -59,16 +52,14 @@ async function normalizeImageOrientation(dataUrl: string): Promise<string> {
 }
 
 /**
- * Fetch an image as a data URL (base64) with auth.
+ * Fetch an image as a data URL (base64).
+ * No custom headers = no CORS preflight (avoids OPTIONS 405 when backend
+ * doesn't support it). Works if uploads are public or served without auth.
  * Orientation is normalized so PDF/Word display correctly (EXIF fix).
- * Use for jsPDF and other consumers that accept data URLs.
  */
 export async function fetchImageAsDataUrl(imageUrl: string): Promise<string | null> {
-  const { token } = getStoredAuth();
   try {
-    const res = await fetch(imageUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const res = await fetch(imageUrl);
     if (!res.ok) return null;
     const blob = await res.blob();
     const dataUrl = await new Promise<string>((resolve, reject) => {

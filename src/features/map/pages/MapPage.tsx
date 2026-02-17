@@ -1,19 +1,14 @@
 import React, { useCallback, useEffect, useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Navbar } from '../../../components/layout/Navbar';
 import type { GedItem } from '../../ged/types/ged.types';
 import { QualiphotoDetailModal } from '../../ged/components/QualiphotoDetailModal';
-import {
-  buildImageUrl,
-  isVideoUrl,
-  isAudioUrl,
-} from '../../ged/utils/qualiphotoHelpers';
+import { buildImageUrl } from '../../ged/utils/qualiphotoHelpers';
 import { useMapGeds } from '../hooks/useMapGeds';
-import { createGedMarkerIcon } from '../utils/gedMarkerIcon';
 import { MapLocationPanel } from '../components/MapLocationPanel';
 import { MapBoundsUpdater } from '../components/MapBoundsUpdater';
 import {
@@ -32,7 +27,7 @@ export interface MapPageOptions {
   boundsDebounceMs?: number;
 }
 
-/** Single marker per location group; memoizes the custom image icon. */
+/** Canvas-compatible marker: no images, no DOM-heavy icons. Uses CircleMarker (Path) for smooth pan/zoom. */
 const MapGroupMarker = React.memo(function MapGroupMarker({
   group,
   onSelectLocationGroup,
@@ -44,25 +39,35 @@ const MapGroupMarker = React.memo(function MapGroupMarker({
 }) {
   const { t } = useTranslation(['mapPage']);
   const firstGed = group.items[0];
-  const imageUrl = buildImageUrl(firstGed);
-  const icon = useMemo(
-    () => createGedMarkerIcon(imageUrl, group.items.length),
-    [imageUrl, group.items.length],
-  );
   const isMulti = group.items.length > 1;
+  const position: [number, number] = [group.coords.lat, group.coords.lng];
+
+  const handleClick = useCallback(() => {
+    if (isMulti) {
+      onSelectLocationGroup(group);
+    } else {
+      onSelectGed(firstGed);
+    }
+  }, [isMulti, group, firstGed, onSelectLocationGroup, onSelectGed]);
 
   return (
-    <Marker
-      key={`ged-${group.positionKey}-${firstGed.id}`}
-      position={[group.coords.lat, group.coords.lng]}
-      icon={icon}
-      eventHandlers={{
-        click: () => {
-          if (isMulti) onSelectLocationGroup(group);
-        },
+    <CircleMarker
+      center={position}
+      pathOptions={{
+        fillColor: '#ff7a00',
+        color: '#fff',
+        weight: 2,
+        fillOpacity: 0.9,
       }}
+      radius={isMulti ? 10 : 8}
+      eventHandlers={{ click: handleClick }}
     >
-      <Popup className="map-ged-popup" minWidth={260} maxWidth={320}>
+      {isMulti && (
+        <Tooltip permanent={false} direction="top" sticky>
+          {t('mapPage:manyGedsAtLocation', { count: group.items.length })}
+        </Tooltip>
+      )}
+      <Popup className="map-ged-popup" minWidth={240} maxWidth={300}>
         <div className="space-y-2">
           {isMulti ? (
             <>
@@ -82,93 +87,29 @@ const MapGroupMarker = React.memo(function MapGroupMarker({
             </>
           ) : (
             <>
-              <div className="w-full overflow-hidden rounded-lg bg-neutral-100">
-                <PopupMedia
-                  ged={firstGed}
-                  imageUrl={imageUrl}
-                  className="block"
-                />
-              </div>
-              <button
-                type="button"
-                className="w-full text-left"
-                onClick={() => onSelectGed(firstGed)}
-              >
-                <p className="text-sm font-semibold text-neutral-800 line-clamp-2">
-                  {firstGed.title || t('mapPage:noTitle')}
-                </p>
-                <p className="text-xs text-neutral-500">
-                  {firstGed.chantier ?? firstGed.categorie ?? '—'}
-                </p>
-              </button>
+              <p className="text-sm font-semibold text-neutral-800 line-clamp-2">
+                {firstGed.title || t('mapPage:noTitle')}
+              </p>
+              <p className="text-xs text-neutral-500">
+                {firstGed.chantier ?? firstGed.categorie ?? '—'}
+              </p>
               <p className="text-[0.7rem] text-neutral-400">
                 {firstGed.latitude}, {firstGed.longitude}
               </p>
+              <button
+                type="button"
+                className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary/90"
+                onClick={() => onSelectGed(firstGed)}
+              >
+                {t('mapPage:viewDetails')}
+              </button>
             </>
           )}
         </div>
       </Popup>
-    </Marker>
+    </CircleMarker>
   );
 });
-
-// Default pin icon (fallback) – use local assets from /public.
-L.Icon.Default.mergeOptions({
-  iconUrl: '/marker-icon.png',
-  iconRetinaUrl: '/marker-icon-2x.png',
-  shadowUrl: '/marker-shadow.png',
-});
-
-/** Popup media: image, video thumbnail, or audio placeholder. */
-function PopupMedia({
-  ged,
-  imageUrl,
-  className,
-}: {
-  ged: GedItem;
-  imageUrl: string;
-  className?: string;
-}) {
-  if (!ged.url) return null;
-  const isVideo = isVideoUrl(ged.url);
-  const isAudio = isAudioUrl(ged.url);
-
-  if (isAudio) {
-    return (
-      <div
-        className={`flex aspect-video items-center justify-center rounded-lg bg-neutral-100 ${className ?? ''}`}
-      >
-        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Audio
-        </span>
-      </div>
-    );
-  }
-
-  if (isVideo) {
-    return (
-      <div className={`aspect-video w-full overflow-hidden rounded-lg bg-black ${className ?? ''}`}>
-        <video
-          src={imageUrl}
-          className="h-full w-full object-contain"
-          preload="metadata"
-          playsInline
-          muted
-          aria-label={ged.title ?? 'Video'}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={imageUrl}
-      alt={ged.title ?? ''}
-      className={`aspect-video w-full rounded-lg object-cover ${className ?? ''}`}
-      loading="lazy"
-    />
-  );
-}
 
 export const MapPage: React.FC<{ options?: MapPageOptions }> = ({ options = {} }) => {
   const { t } = useTranslation(['mapPage', 'qualiphotoPage']);
@@ -257,7 +198,8 @@ export const MapPage: React.FC<{ options?: MapPageOptions }> = ({ options = {} }
                 <MapContainer
                   center={[mapCenter.lat, mapCenter.lng]}
                   zoom={8}
-                  style={{ height: '100%', width: '100%' }}
+                  preferCanvas
+                  className="h-full w-full"
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

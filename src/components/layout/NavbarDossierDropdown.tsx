@@ -8,16 +8,20 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { useProjets } from '../../hooks/useProjets';
+import { useFolders } from '../../hooks/useFolders';
 import { useNavbarFilters } from '../../context/NavbarFiltersContext';
+import type { Folder } from '../../types/folders.types';
+import type { Projet } from '../../types/projets.types';
+import { useProjets } from '../../hooks/useProjets';
 import { SEARCH_DEBOUNCE_MS } from '../../constants/filters';
 
 const LIST_MAX_HEIGHT = 280;
 
-export const NavbarChantierDropdown: React.FC = () => {
+export const NavbarDossierDropdown: React.FC = () => {
   const { t } = useTranslation('filters');
-  const { selectedChantier, setSelectedChantier } = useNavbarFilters();
-  const { projets, loading: projetsLoading } = useProjets();
+  const { selectedFolder, setSelectedFolder, selectedChantier } = useNavbarFilters();
+  const { folders, foldersByProject, loading: foldersLoading } = useFolders();
+  const { projets } = useProjets();
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -49,15 +53,30 @@ export const NavbarChantierDropdown: React.FC = () => {
     };
   }, [isOpen, updatePosition]);
 
-  const displayTrigger = selectedChantier ? selectedChantier.title : t('chantier');
+  const projetById = useMemo(
+    () => Object.fromEntries(projets.map((p) => [p.id, p])),
+    [projets],
+  );
 
-  const filteredProjets = useMemo(() => {
-    if (!debouncedSearch.trim()) return projets;
+  const folderList = useMemo(
+    () =>
+      selectedChantier ? foldersByProject(selectedChantier.id) : folders,
+    [selectedChantier, foldersByProject, folders],
+  );
+
+  const filteredFolders = useMemo(() => {
+    if (!debouncedSearch.trim()) return folderList;
     const term = debouncedSearch.toLowerCase();
-    return projets.filter((p) =>
-      (p.title ?? '').toLowerCase().includes(term),
+    return folderList.filter(
+      (f) =>
+        (f.title ?? '').toLowerCase().includes(term) ||
+        (f.code ?? '').toLowerCase().includes(term),
     );
-  }, [projets, debouncedSearch]);
+  }, [folderList, debouncedSearch]);
+
+  const displayTrigger = selectedFolder
+    ? `${selectedFolder.code} — ${selectedFolder.title}`
+    : t('dossier');
 
   useEffect(() => {
     const tId = window.setTimeout(() => {
@@ -70,13 +89,13 @@ export const NavbarChantierDropdown: React.FC = () => {
   useEffect(() => {
     if (
       highlightIndex >= 0 &&
-      highlightIndex < filteredProjets.length &&
+      highlightIndex < filteredFolders.length &&
       listRef.current
     ) {
       const el = listRef.current.children[highlightIndex] as HTMLElement;
       el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [highlightIndex, filteredProjets.length]);
+  }, [highlightIndex, filteredFolders.length]);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -118,15 +137,15 @@ export const NavbarChantierDropdown: React.FC = () => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setHighlightIndex((i) =>
-          filteredProjets.length ? (i + 1) % filteredProjets.length : -1,
+          filteredFolders.length ? (i + 1) % filteredFolders.length : -1,
         );
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         setHighlightIndex((i) =>
-          filteredProjets.length
-            ? (i - 1 + filteredProjets.length) % filteredProjets.length
+          filteredFolders.length
+            ? (i - 1 + filteredFolders.length) % filteredFolders.length
             : -1,
         );
         return;
@@ -134,20 +153,14 @@ export const NavbarChantierDropdown: React.FC = () => {
       if (
         e.key === 'Enter' &&
         highlightIndex >= 0 &&
-        highlightIndex < filteredProjets.length
+        highlightIndex < filteredFolders.length
       ) {
         e.preventDefault();
-        setSelectedChantier(filteredProjets[highlightIndex]);
+        setSelectedFolder(filteredFolders[highlightIndex]);
         close();
       }
     },
-    [
-      isOpen,
-      close,
-      filteredProjets,
-      highlightIndex,
-      setSelectedChantier,
-    ],
+    [isOpen, close, filteredFolders, highlightIndex, setSelectedFolder],
   );
 
   return (
@@ -155,14 +168,14 @@ export const NavbarChantierDropdown: React.FC = () => {
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => !projetsLoading && setIsOpen((o) => !o)}
+        onClick={() => !foldersLoading && setIsOpen((o) => !o)}
         onKeyDown={handleKeyDown}
-        disabled={projetsLoading}
+        disabled={foldersLoading}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-2 text-[0.85rem] font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:opacity-60"
       >
-        <span className="max-w-[120px] truncate">{displayTrigger}</span>
+        <span className="max-w-[140px] truncate">{displayTrigger}</span>
         <span className="text-gray-400" aria-hidden>
           {isOpen ? '▲' : '▼'}
         </span>
@@ -173,49 +186,71 @@ export const NavbarChantierDropdown: React.FC = () => {
           <div
             ref={panelRef}
             className="fixed z-[100] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
-            style={{ top: position.top, left: position.left, minWidth: 260 }}
+            style={{ top: position.top, left: position.left, minWidth: 280 }}
           >
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t('chantierPlaceholder')}
+            placeholder={t('dossierPlaceholder')}
             autoComplete="off"
             className="border-b border-neutral-100 px-3 py-2.5 text-sm text-neutral-800 outline-none placeholder:text-neutral-400"
-            aria-label={t('chantier')}
+            aria-label={t('dossier')}
           />
+          {selectedChantier && (
+            <div className="border-b border-neutral-100 px-3 py-1.5 text-xs text-neutral-500">
+              {t('foldersForProject')} — {selectedChantier.title}
+            </div>
+          )}
           <ul
             ref={listRef}
             role="listbox"
             className="overflow-y-auto py-1"
             style={{ maxHeight: LIST_MAX_HEIGHT }}
           >
-            {filteredProjets.length === 0 ? (
+            {filteredFolders.length === 0 ? (
               <li className="px-3 py-2.5 text-sm text-neutral-500">
-                Aucun résultat
+                {folderList.length === 0
+                  ? selectedChantier
+                    ? t('noFolders')
+                    : t('noProjectSelected')
+                  : t('noSearchResult')}
               </li>
             ) : (
-              filteredProjets.map((projet, index) => {
+              filteredFolders.map((folder: Folder, index: number) => {
                 const isHighlighted = index === highlightIndex;
-                const isSelected = selectedChantier?.id === projet.id;
+                const isSelected = selectedFolder?.id === folder.id;
+                const projet = projetById[folder.project_id] as Projet | undefined;
                 return (
                   <li
-                    key={projet.id}
+                    key={folder.id}
                     role="option"
                     aria-selected={isHighlighted || isSelected}
                     onMouseEnter={() => setHighlightIndex(index)}
                     onClick={() => {
-                      setSelectedChantier(projet);
+                      setSelectedFolder(folder);
                       close();
                     }}
-                    className={`flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm text-neutral-800 transition ${
+                    className={`flex cursor-pointer flex-col gap-0.5 px-3 py-2 text-sm text-neutral-800 transition ${
                       isHighlighted || isSelected
                         ? 'bg-neutral-100'
                         : 'hover:bg-neutral-50'
                     }`}
                   >
-                    <span className="min-w-0 truncate">{projet.title}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs text-neutral-500">
+                        {folder.code}
+                      </span>
+                      {!selectedChantier && projet && (
+                        <span className="truncate text-xs text-neutral-400">
+                          {projet.title}
+                        </span>
+                      )}
+                    </div>
+                    <span className="min-w-0 truncate font-medium">
+                      {folder.title}
+                    </span>
                   </li>
                 );
               })

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navbar } from '../../../components/layout/Navbar';
 import { getGeds } from '../../ged/services/ged.service';
 import { QUALIPHOTO_KIND, IDSOURCE_MAIN, IDSOURCE_EMPTY_GUID } from '../../ged/constants';
@@ -17,6 +17,10 @@ export const SequencePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedGed, setSelectedGed] = useState<GedItem | null>(null);
+  const lastUserInteractionRef = useRef<number>(0);
+
+  const AUTO_ADVANCE_MS = 3000;
+  const PAUSE_AFTER_INTERACTION_MS = 3000;
 
   const fetchAll = useCallback(async (): Promise<GedItem[]> => {
     setLoading(true);
@@ -64,11 +68,27 @@ export const SequencePage: React.FC = () => {
   }, [mediaItems.length, currentIndex]);
 
   const goPrev = useCallback(() => {
+    lastUserInteractionRef.current = Date.now();
     setCurrentIndex((i) => Math.max(0, i - 1));
   }, []);
 
   const goNext = useCallback(() => {
-    setCurrentIndex((i) => Math.min(mediaItems.length - 1, i + 1));
+    lastUserInteractionRef.current = Date.now();
+    setCurrentIndex((i) => {
+      const next = i + 1;
+      if (next >= mediaItems.length) return 0;
+      return next;
+    });
+  }, [mediaItems.length]);
+
+  useEffect(() => {
+    if (mediaItems.length <= 1) return;
+    const id = setInterval(() => {
+      const elapsed = Date.now() - lastUserInteractionRef.current;
+      if (elapsed < PAUSE_AFTER_INTERACTION_MS) return;
+      setCurrentIndex((i) => (i + 1) % mediaItems.length);
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(id);
   }, [mediaItems.length]);
 
   const handleSaved = useCallback(
@@ -126,7 +146,10 @@ export const SequencePage: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedGed(currentGed)}
+                  onClick={() => {
+                    lastUserInteractionRef.current = Date.now();
+                    setSelectedGed(currentGed);
+                  }}
                   className="group flex w-[66vw] max-w-4xl flex-col overflow-hidden rounded-2xl bg-white/80 shadow-[0_4px_14px_rgba(0,0,0,0.06)] transition hover:shadow-[0_10px_30px_rgba(0,0,0,0.10)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-neutral-100">

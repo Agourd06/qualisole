@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../LanguageSwitcher';
-import { NavDateInput } from '../ui/NavDateInput';
+import { NavbarDateDropdown } from './NavbarDateDropdown';
 import { NavbarChantierDropdown } from './NavbarChantierDropdown';
+import { NavbarDossierDropdown } from './NavbarDossierDropdown';
 import { NavbarAuthorDropdown } from './NavbarAuthorDropdown';
 import { UploadGedModal } from '../../features/ged/components/UploadGedModal';
 import { useNavbarFilters } from '../../context/NavbarFiltersContext';
@@ -21,17 +22,8 @@ const NAV_TABS = [
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('nav');
-  const { t: tFilters } = useTranslation('filters');
   const { user } = getStoredAuth();
-  const {
-    dateDebut,
-    dateFin,
-    setDateDebut,
-    setDateFin,
-    selectedFolder,
-    selectedChantier,
-    triggerRefresh,
-  } = useNavbarFilters();
+  const { selectedFolder, selectedChantier, triggerRefresh } = useNavbarFilters();
   const [addConstatModalOpen, setAddConstatModalOpen] = useState(false);
 
   const handleLogout = () => {
@@ -52,8 +44,8 @@ export const Navbar: React.FC = () => {
   return (
     <header className="fixed inset-x-0 top-0 z-30 bg-white/80 shadow-sm backdrop-blur-md">
       <div className="flex items-center justify-between gap-2 px-3 py-2.5 lg:gap-4 lg:px-6 lg:py-3">
-        {/* Left: Logo | Refresh | Dates | Chantier+Dossier | Add Constat */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 lg:gap-3">
+        {/* Left: Logo | Refresh | Dates | Chantier | Dossier | Add Constat — one line */}
+        <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 lg:gap-3 overflow-x-auto">
           <div className="flex shrink-0 items-center gap-3 pl-2">
             <div className="flex h-9 w-18 items-center justify-center overflow-hidden rounded-2xl bg-tertiary shadow-[0_6px_16px_rgba(0,0,0,0.06)]">
               <img
@@ -74,22 +66,10 @@ export const Navbar: React.FC = () => {
               </svg>
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <NavDateInput
-              id="navbar-date-debut"
-              value={dateDebut}
-              onChange={setDateDebut}
-              aria-label={tFilters('dateDebut')}
-            />
-            <NavDateInput
-              id="navbar-date-fin"
-              value={dateFin}
-              onChange={setDateFin}
-              aria-label={tFilters('dateFin')}
-            />
-          </div>
+          <NavbarDateDropdown />
           <NavbarAuthorDropdown />
           <NavbarChantierDropdown />
+          <NavbarDossierDropdown />
           <button
             type="button"
             onClick={() => setAddConstatModalOpen(true)}

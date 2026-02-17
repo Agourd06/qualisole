@@ -64,8 +64,53 @@
   color: var(--color-primary) !important;
 }
 
-/* Map: custom GED image markers (no default pin background) */
-.leaflet-div-icon.map-ged-div-icon {
-  border: none;
-  background: transparent;
+/* Qualiphoto modal: lightweight editor with breathable layout */
+.qualiphoto-modal-editor .rich-text-editor-qualisol {
+  border: 2px solid rgba(255, 122, 0, 0.5) !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.qualiphoto-modal-editor:focus-within .rich-text-editor-qualisol {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(255, 122, 0, 0.2) !important;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor {
+  border-radius: 0 !important;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor .se-toolbar {
+  background-color: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  padding: 8px 12px !important;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor .se-toolbar .se-btn-module {
+  margin: 0 2px !important;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor .se-toolbar .se-btn {
+  width: 28px !important;
+  height: 28px !important;
+  opacity: 0.7;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor .se-toolbar .se-btn:hover {
+  opacity: 1;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor .se-container .se-wrapper-wysiwyg {
+  padding: 16px 20px !important;
+  min-height: 100px;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol .sun-editor .se-placeholder {
+  color: #9ca3af !important;
+}
+.qualiphoto-modal-editor .rich-text-editor-qualisol > div:last-of-type {
+  border-color: #e5e7eb !important;
+  background-color: #f9fafb !important;
+  color: #6b7280 !important;
+}
+
+/* Navbar filter date inputs: hide native up/down spinner for cleaner look */
+.nav-date-input::-webkit-inner-spin-button,
+.nav-date-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
 }
