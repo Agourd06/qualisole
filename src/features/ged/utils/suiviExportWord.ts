@@ -13,6 +13,7 @@ import {
   ShadingType,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
+import { POWERED_BY } from '../../../utils/constants';
 import type { SuiviPairRow } from './suiviExportPdf';
 import { dataUrlToUint8Array } from './gedExportUtils';
 import { htmlToSegments, DEFAULT_DESC_COLOR, parseHtmlAlignment } from './htmlToSegments';
@@ -64,6 +65,13 @@ function cellTableForRow(row: FolderGedRow | null): Table {
     textParagraphs.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
   } else {
     if (row.imageDataUrl) {
+      imageParagraphs.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: `Powered by ${POWERED_BY}`, size: 9, color: '6B7280' })],
+          spacing: { after: 30 },
+        }),
+      );
       try {
         const { data, type } = dataUrlToUint8Array(row.imageDataUrl);
         imageParagraphs.push(

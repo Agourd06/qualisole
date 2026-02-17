@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { buildImageUrl, getMediaType } from '../utils/qualiphotoHelpers';
+import { POWERED_BY } from '../../../utils/constants';
 import type { GedItem } from '../types/ged.types';
 
 export interface AssociatedGedsListProps {
@@ -36,24 +37,42 @@ function MediaThumbnail({ ged, className }: { ged: GedItem; className?: string }
 
   if (type === 'video') {
     return (
-      <video
-        src={url}
-        className={`h-12 w-12 shrink-0 rounded-lg object-cover ${className ?? ''}`}
-        preload="metadata"
-        muted
-        playsInline
-        aria-hidden
-      />
+      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ${className ?? ''}`}>
+        <video
+          src={url}
+          className="h-full w-full object-cover"
+          preload="metadata"
+          muted
+          playsInline
+          aria-hidden
+        />
+        <div
+          className="absolute left-1/2 top-0 z-10 -translate-x-1/2 text-[0.45rem] font-medium text-white/90"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', lineHeight: 1.2, padding: '1px 2px' }}
+          aria-hidden
+        >
+          {POWERED_BY}
+        </div>
+      </div>
     );
   }
 
   return (
-    <img
-      src={url}
-      alt=""
-      className={`h-12 w-12 shrink-0 rounded-lg object-cover ${className ?? ''}`}
-      loading="lazy"
-    />
+    <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ${className ?? ''}`}>
+      <img
+        src={url}
+        alt=""
+        className="h-full w-full object-cover"
+        loading="lazy"
+      />
+      <div
+        className="absolute left-1/2 top-0 z-10 -translate-x-1/2 text-[0.45rem] font-medium text-white/90"
+        style={{ backgroundColor: 'rgba(0,0,0,0.5)', lineHeight: 1.2, padding: '1px 2px' }}
+        aria-hidden
+      >
+        {POWERED_BY}
+      </div>
+    </div>
   );
 }
 

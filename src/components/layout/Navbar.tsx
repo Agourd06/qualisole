@@ -38,12 +38,12 @@ export const Navbar: React.FC = () => {
 
   const navLinkClass =
     'whitespace-nowrap rounded-full px-2.5 py-1.5 text-[0.8rem] font-semibold transition-colors sm:px-3 sm:py-2 sm:text-[0.85rem]';
-  const navLinkActive = 'bg-tertiary text-primary';
-  const navLinkInactive = 'text-gray-600 hover:bg-gray-100 hover:text-gray-800';
+  const navLinkActive = 'bg-tertiary text-primary border-b-2 border-orange';
+  const navLinkInactive = 'border-b-2 border-orange/80 text-gray-600 shadow-sm transition duration-150 hover:bg-tertiary-hover hover:text-gray-800';
 
   return (
     <header className="fixed inset-x-0 top-0 z-30 bg-white/80 shadow-sm backdrop-blur-md">
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5 lg:gap-4 lg:px-6 lg:py-3">
+      <div className="flex items-center justify-between gap-1 px-3 py-2.5 lg:gap-5 lg:px-6 lg:py-3">
         {/* Left: Logo | Refresh | Dates | Chantier | Dossier | Add Constat — one line */}
         <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 lg:gap-3 overflow-x-auto">
           <div className="flex shrink-0 items-center gap-3 pl-2">

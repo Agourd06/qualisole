@@ -13,6 +13,7 @@ import {
   ShadingType,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
+import { POWERED_BY } from '../../../utils/constants';
 import { dataUrlToUint8Array } from './gedExportUtils';
 import { htmlToSegments, DEFAULT_DESC_COLOR, parseHtmlAlignment } from './htmlToSegments';
 
@@ -136,6 +137,13 @@ export async function generateFolderGedsTableWord(
   for (const row of rows) {
     const leftParagraphs: Paragraph[] = [];
     if (row.imageDataUrl) {
+      leftParagraphs.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: `Powered by ${POWERED_BY}`, size: 10, color: '6B7280' })],
+          spacing: { after: 40 },
+        }),
+      );
       try {
         const { data, type } = dataUrlToUint8Array(row.imageDataUrl);
         leftParagraphs.push(

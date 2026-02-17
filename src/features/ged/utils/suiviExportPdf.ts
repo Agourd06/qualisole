@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { generateFolderGedsTablePdf, type FolderGedRow } from './qualiphotoPdf';
+import { POWERED_BY } from '../../../utils/constants';
 import { htmlToSegments, hexToRgb, parseHtmlAlignment } from './htmlToSegments';
 
 export type { FolderGedRow };
@@ -171,6 +172,14 @@ export async function generateSuiviBothPdf(
             undefined,
             'NONE',
           );
+          const watermarkText = `Powered by ${POWERED_BY}`;
+          doc.setFontSize(5);
+          doc.setFont('helvetica', 'normal');
+          doc.setFillColor(50, 50, 50);
+          const ww = doc.getTextWidth(watermarkText) + 2;
+          doc.rect(imgX + (fitW - ww) / 2, rowY + BOTH_PDF.cellPaddingMm + 0.5, ww, 2.5, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.text(watermarkText, imgX + fitW / 2, rowY + BOTH_PDF.cellPaddingMm + 2.2, { align: 'center' });
           imageBottom = rowY + BOTH_PDF.cellPaddingMm + fitH;
         } catch {
           doc.setFontSize(BOTH_PDF.descFontSize);

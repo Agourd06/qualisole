@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GedItem } from '../../ged/types/ged.types';
 import { buildImageUrl, isVideoUrl, isAudioUrl } from '../../ged/utils/qualiphotoHelpers';
+import { POWERED_BY } from '../../../utils/constants';
 import type { LocationGroup } from '../utils/groupByPosition';
 
 export interface MapLocationPanelProps {
@@ -56,28 +57,46 @@ export const MapLocationPanel: React.FC<MapLocationPanelProps> = ({
                 onClick={() => onSelectGed(ged)}
                 className="flex w-full items-center gap-3 rounded-xl border border-neutral-100 bg-neutral-50/50 p-2 text-left transition hover:border-primary/30 hover:bg-primary/5"
               >
-                <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
+                <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-200">
                   {ged.url ? (
                     isVideoUrl(ged.url) ? (
-                      <video
-                        src={buildImageUrl(ged)}
-                        className="h-full w-full object-cover object-top"
-                        preload="metadata"
-                        muted
-                        playsInline
-                        aria-hidden
-                      />
+                      <>
+                        <video
+                          src={buildImageUrl(ged)}
+                          className="h-full w-full object-cover object-top"
+                          preload="metadata"
+                          muted
+                          playsInline
+                          aria-hidden
+                        />
+                        <div
+                          className="absolute left-1/2 top-px z-10 -translate-x-1/2 rounded px-0.5 py-px text-[0.3rem] font-medium leading-none text-white/90"
+                          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                          aria-hidden
+                        >
+                          {POWERED_BY}
+                        </div>
+                      </>
                     ) : isAudioUrl(ged.url) ? (
                       <div className="flex h-full w-full items-center justify-center bg-neutral-200 text-neutral-500">
                         <span className="text-[10px] font-semibold uppercase">Audio</span>
                       </div>
                     ) : (
-                      <img
-                        src={buildImageUrl(ged)}
-                        alt=""
-                        className="h-full w-full object-cover object-top overflow-hidden"
-                        loading="lazy"
-                      />
+                      <>
+                        <img
+                          src={buildImageUrl(ged)}
+                          alt=""
+                          className="h-full w-full object-cover object-top overflow-hidden"
+                          loading="lazy"
+                        />
+                        <div
+                          className="absolute left-1/2 top-px z-10 -translate-x-1/2 rounded px-0.5 py-px text-[0.3rem] font-medium leading-none text-white/90"
+                          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                          aria-hidden
+                        >
+                          {POWERED_BY}
+                        </div>
+                      </>
                     )
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-neutral-400">

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import { POWERED_BY } from '../../utils/constants';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 export interface FullScreenImageZoomProps {
@@ -94,8 +95,16 @@ export const FullScreenImageZoom: React.FC<FullScreenImageZoomProps> = ({
 
             </div>
 
+            {/* Powered by – top center */}
+            <div
+              className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded px-3 py-1.5 text-xs font-medium tracking-wide text-white/90"
+              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              aria-hidden
+            >
+              Powered by {POWERED_BY}
+            </div>
             {/* Floating overlay controls */}
-            <div className="absolute inset-x-0 top-4 z-20 flex items-center justify-center gap-2 px-4">
+            <div className="absolute inset-x-0 top-16 z-20 flex items-center justify-center gap-2 px-4">
               <button
                 type="button"
                 onClick={() => zoomIn()}

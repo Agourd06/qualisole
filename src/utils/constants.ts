@@ -17,3 +17,6 @@ export const UPLOADS_BASE = (() => {
 })();
 
 export const APP_NAME = 'QualiSol';
+
+/** Shown top-center on every GED/photo and in PDF/Word exports. */
+export const POWERED_BY = 'MUNTADAACOM';

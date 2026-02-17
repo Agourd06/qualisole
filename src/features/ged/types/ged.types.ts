@@ -34,6 +34,8 @@ export interface GedItem {
   iatxt: string | null;
   created_at: string;
   updated_at: string;
+  /** View count; incremented when user opens the GED detail modal. */
+  vue?: number;
 }
 
 export type GedListResponse = GedItem[];

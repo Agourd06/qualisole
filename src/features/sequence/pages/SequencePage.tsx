@@ -10,6 +10,7 @@ import {
   isAudioUrl,
 } from '../../ged/utils/qualiphotoHelpers';
 import { QualiphotoDetailModal } from '../../ged/components/QualiphotoDetailModal';
+import { POWERED_BY } from '../../../utils/constants';
 
 export const SequencePage: React.FC = () => {
   const [items, setItems] = useState<GedItem[]>([]);
@@ -153,6 +154,13 @@ export const SequencePage: React.FC = () => {
                   className="group flex w-[66vw] max-w-4xl flex-col overflow-hidden rounded-2xl bg-white/80 shadow-[0_4px_14px_rgba(0,0,0,0.06)] transition hover:shadow-[0_10px_30px_rgba(0,0,0,0.10)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-neutral-100">
+                    <div
+                      className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded px-2 py-0.5 text-[0.6rem] font-medium tracking-wide text-white/90 shadow-lg"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                      aria-hidden
+                    >
+                      Powered by {POWERED_BY}
+                    </div>
                     {(() => {
                       const url = buildImageUrl(currentGed);
                       const isVideo = isVideoUrl(currentGed.url);

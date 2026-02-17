@@ -53,6 +53,8 @@ export interface UpdateGedParams {
   idsource: string | number;
   title?: string;
   description?: string | null;
+  /** Increment view count when user opens modal. */
+  vue?: number;
 }
 
 /**
@@ -60,9 +62,10 @@ export interface UpdateGedParams {
  * Only sends body fields that are filled (not null/empty).
  */
 export const updateGed = async (params: UpdateGedParams): Promise<unknown> => {
-  const body: Record<string, string> = {};
+  const body: Record<string, string | number> = {};
   if (params.title != null && params.title.trim() !== '') body.title = params.title.trim();
   if (params.description != null && params.description.trim() !== '') body.description = params.description.trim();
+  if (params.vue != null && typeof params.vue === 'number') body.vue = params.vue;
   const { data } = await axiosClient.put<unknown>(
     `${BASE_URL}/${params.id}`,
     body,

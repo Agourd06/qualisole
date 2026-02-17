@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { POWERED_BY } from '../../../utils/constants';
 import type { GedItem } from '../types/ged.types';
 
 const MEDIA_BADGE_CLASS =
@@ -79,17 +80,33 @@ function MediaThumbnail({
           muted
           aria-label={alt}
         />
+        <div
+          className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded px-1.5 py-0.5 text-[0.55rem] font-medium tracking-wide text-white/90"
+          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+          aria-hidden
+        >
+          Powered by {POWERED_BY}
+        </div>
         <span className={`${MEDIA_BADGE_CLASS} bg-primary text-white`}>{videoLabel}</span>
       </div>
     );
   }
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      loading="lazy"
-    />
+    <div className="relative h-full w-full overflow-hidden">
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        loading="lazy"
+      />
+      <div
+        className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded px-1.5 py-0.5 text-[0.55rem] font-medium tracking-wide text-white/90"
+        style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+        aria-hidden
+      >
+        Powered by {POWERED_BY}
+      </div>
+    </div>
   );
 }
 

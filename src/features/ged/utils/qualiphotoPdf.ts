@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { htmlToSegments, hexToRgb, parseHtmlAlignment } from './htmlToSegments';
+import { POWERED_BY } from '../../../utils/constants';
 
 /** Blue accent (report style, like IMAGE DATA REPORT). Customize via theme. */
 const BLUE = [0, 82, 155] as [number, number, number];
@@ -138,6 +139,14 @@ export async function generateQualiphotoPdf(
       const imgX = margin + (contentWidth - fitW) / 2;
       const format = data.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
       doc.addImage(data.imageDataUrl, format, imgX, imgBlockY, fitW, fitH, undefined, 'FAST');
+      const watermarkText = `Powered by ${POWERED_BY}`;
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setFillColor(50, 50, 50);
+      const ww = doc.getTextWidth(watermarkText) + 3;
+      doc.rect(imgX + (fitW - ww) / 2, imgBlockY + 1, ww, 4, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text(watermarkText, imgX + fitW / 2, imgBlockY + 3.8, { align: 'center' });
       y = imgBlockY + fitH;
     } catch {
       doc.setFontSize(10);
@@ -451,6 +460,14 @@ export async function generateFolderGedsTablePdf(
             undefined,
             'NONE'
           );
+          const watermarkText = `Powered by ${POWERED_BY}`;
+          doc.setFontSize(5);
+          doc.setFont('helvetica', 'normal');
+          doc.setFillColor(50, 50, 50);
+          const ww = doc.getTextWidth(watermarkText) + 2;
+          doc.rect(imgX + (fitW - ww) / 2, rowY + FOLDER_PDF.cellPaddingMm + 0.5, ww, 2.5, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.text(watermarkText, imgX + fitW / 2, rowY + FOLDER_PDF.cellPaddingMm + 2.2, { align: 'center' });
           imageBottomY = rowY + FOLDER_PDF.cellPaddingMm + fitH;
         } catch {
           doc.setFontSize(FOLDER_PDF.rowDescFontSize);

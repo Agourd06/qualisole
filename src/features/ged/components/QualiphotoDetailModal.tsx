@@ -9,6 +9,7 @@ import { getMediaType } from '../utils/qualiphotoHelpers';
 import { useAssociatedGeds } from '../hooks/useAssociatedGeds';
 import { AssociatedGedsList } from './AssociatedGedsList';
 import { FullScreenImageZoom } from '../../../components/ui/FullScreenImageZoom';
+import { POWERED_BY } from '../../../utils/constants';
 import type { GedItem } from '../types/ged.types';
 
 function formatDisplayDate(iso: string): string {
@@ -74,6 +75,26 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
     }
     syncFromGed(ged);
   }, [ged, syncFromGed]);
+
+  /** Increment vue (view count) when user opens the modal. Runs once per GED open. */
+  const vueIncrementedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ged) {
+      vueIncrementedRef.current = null;
+      return;
+    }
+    if (vueIncrementedRef.current === ged.id) return;
+    vueIncrementedRef.current = ged.id;
+    const nextVue = (ged.vue ?? 0) + 1;
+    updateGed({
+      id: ged.id,
+      kind: ged.kind,
+      idsource: ged.idsource,
+      vue: nextVue,
+    }).catch(() => {
+      /* Silently ignore; view count is non-critical */
+    });
+  }, [ged?.id, ged]);
 
   useEffect(() => {
     if (!isImageFullscreen) return;
@@ -233,6 +254,13 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               </span>
             </div>
             <div className="group relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <div
+                  className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded px-2 py-1 text-[0.65rem] font-medium tracking-wide text-white/90 shadow-lg"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                  aria-hidden
+                >
+                  Powered by {POWERED_BY}
+                </div>
                 {isImage && (
                   <button
                     type="button"
