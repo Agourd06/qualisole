@@ -49,9 +49,11 @@ export function toLocalDateString(iso: string): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Format ISO date for display (e.g. 29/01/2026). */
-export function formatDisplayDate(iso: string): string {
+/** Format ISO date for display (e.g. 29/01/2026). Returns "—" if invalid or missing. */
+export function formatDisplayDate(iso: string | null | undefined): string {
+  if (iso == null || typeof iso !== 'string') return '—';
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
