@@ -15,6 +15,7 @@ const NAV_TABS = [
   { to: '/qualiphoto', labelKey: 'constat' as const },
   { to: '/suivi', labelKey: 'suivi' as const },
   { to: '/sequence', labelKey: 'sequence' as const },
+  { to: '/control', labelKey: 'control' as const },
   { to: '/map', labelKey: 'map' as const },
 ] as const;
 
@@ -90,7 +91,7 @@ export const Navbar: React.FC = () => {
               className={({ isActive }) =>
                 `${navLinkClass} ${isActive ? navLinkActive : navLinkInactive}`
               }
-              end={to === '/sequence' || to === '/map'}
+              end={to === '/sequence' || to === '/control' || to === '/map'}
             >
               {t(labelKey)}
             </NavLink>
