@@ -12,6 +12,8 @@ export interface SuiviLeftColumnProps {
   onCardClick: (ged: GedItem) => void;
   t: (key: string, fallback?: string) => string;
   disabled?: boolean;
+  /** Shown when left is empty because chantier/folder not selected. */
+  emptyHint?: string | null;
 }
 
 export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
@@ -21,6 +23,7 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
   onCardClick,
   t,
   disabled = false,
+  emptyHint,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   useEffect(() => setCurrentPage(1), [leftImageItems.length]);
@@ -80,8 +83,10 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
           >
             {leftImageItems.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 py-12 text-center text-sm text-neutral-500 min-h-[180px]">
-                <p>{t('noImages')}</p>
-                <p className="mt-1 font-medium text-neutral-600">{t('dropHereToUnassign')}</p>
+                <p>{emptyHint ?? t('noImages')}</p>
+                {!emptyHint && (
+                  <p className="mt-1 font-medium text-neutral-600">{t('dropHereToUnassign')}</p>
+                )}
               </div>
             ) : (
               paginatedItems.map((ged, index) => (

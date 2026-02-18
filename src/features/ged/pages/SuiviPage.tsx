@@ -89,8 +89,9 @@ export const SuiviPage: React.FC = () => {
     };
   }, [fetchAllGeds]);
 
-  /** Left column: filter by date and author only (not chantier or dossier). */
+  /** Left column: filter by date, author, chantier, and folder. Only show items when both chantier and folder are selected. */
   const filteredByFilters = useMemo(() => {
+    if (!selectedChantier || !selectedFolder) return [];
     return items.filter((ged) => {
       if (selectedAuthorId != null && selectedAuthorId !== '') {
         const authorId = ged.idauthor ?? (ged as { id_author?: string }).id_author;
@@ -99,9 +100,17 @@ export const SuiviPage: React.FC = () => {
       const gedDateOnly = toDateOnly(ged.created_at);
       if (dateDebut && gedDateOnly < dateDebut) return false;
       if (dateFin && gedDateOnly > dateFin) return false;
+      const chantierId = (ged as GedItem & { chantier_id?: string }).chantier_id;
+      const matchesChantier =
+        chantierId != null && String(chantierId) === String(selectedChantier.id);
+      const matchesChantierTitle =
+        ged.chantier != null &&
+        ged.chantier.trim() !== '' &&
+        ged.chantier === (selectedChantier.title ?? '');
+      if (!matchesChantier && !matchesChantierTitle) return false;
       return true;
     });
-  }, [items, selectedAuthorId, dateDebut, dateFin]);
+  }, [items, selectedAuthorId, dateDebut, dateFin, selectedChantier, selectedFolder]);
 
   const leftImageItems = useMemo(
     () =>
@@ -194,6 +203,7 @@ export const SuiviPage: React.FC = () => {
             onCardClick={setSelectedGed}
             t={tWithFallback}
             disabled={slotUpdateInProgress}
+            emptyHint={!selectedChantier || !selectedFolder ? t('selectFolderToSeeGeds') : undefined}
           />
           <div
             className="mx-6 w-[3px] self-stretch bg-primary rounded-full shadow-[0_0_0_1px_rgba(0,0,0,0.02)]"
