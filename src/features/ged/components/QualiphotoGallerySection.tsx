@@ -4,9 +4,6 @@ import { buildImageUrl, formatDisplayDate, getCreatedAtRaw, isVideoUrl, isAudioU
 import { POWERED_BY } from '../../../utils/constants';
 import type { GedItem } from '../types/ged.types';
 
-const MEDIA_BADGE_CLASS =
-  'absolute left-2 top-2 z-[1] rounded-md px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide shadow-sm';
-
 /** Map pin: visible 0 = green, 1 = orange */
 export function MapPinIcon({ visible }: { visible?: number }) {
   const color = visible === 1 ? 'text-primary' : 'text-green-500';
@@ -110,7 +107,7 @@ function MediaThumbnail({
   isVideo,
   isAudio,
   className,
-  videoLabel = 'Video',
+  videoLabel: _videoLabel = 'Video',
   audioLabel = 'Audio',
 }: {
   src: string;
