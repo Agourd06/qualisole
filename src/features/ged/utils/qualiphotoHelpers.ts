@@ -10,6 +10,15 @@ export function buildImageUrl(ged: GedItem): string {
   return `${base}${path}`;
 }
 
+/** Build full URL for voice note (urlvoice path). */
+export function buildVoiceUrl(urlvoice: string | null | undefined): string {
+  if (!urlvoice || typeof urlvoice !== 'string') return '';
+  const path = urlvoice.startsWith('/') ? urlvoice : `/${urlvoice}`;
+  const base = UPLOADS_BASE?.replace?.(/\/$/, '') ?? '';
+  if (!base) return '';
+  return `${base}${path}`;
+}
+
 export function isImageUrl(url: string): boolean {
   return /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(url);
 }
@@ -49,6 +58,16 @@ export function toLocalDateString(iso: string): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Format ISO date as time HH:mm for card footer. */
+export function formatDisplayTime(iso: string | null | undefined): string {
+  if (iso == null || typeof iso !== 'string') return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 /** Format ISO date for display (e.g. 29/01/2026). Returns "—" if invalid or missing. */
 export function formatDisplayDate(iso: string | null | undefined): string {
   if (iso == null || typeof iso !== 'string') return '—';
@@ -58,6 +77,20 @@ export function formatDisplayDate(iso: string | null | undefined): string {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
+}
+
+/** Get best date string for display (created_at, fallback to updated_at; handles snake_case and camelCase). */
+export function getCreatedAtRaw(
+  item: { created_at?: string | null; createdAt?: string | null; updated_at?: string | null; updatedAt?: string | null },
+): string | null {
+  return item.created_at ?? item.createdAt ?? item.updated_at ?? item.updatedAt ?? null;
+}
+
+/** Get formatted created_at for display. */
+export function getCreatedAtDisplay(
+  item: { created_at?: string | null; createdAt?: string | null; updated_at?: string | null; updatedAt?: string | null },
+): string {
+  return formatDisplayDate(getCreatedAtRaw(item));
 }
 
 export function getTodayDateString(): string {

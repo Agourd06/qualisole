@@ -172,7 +172,7 @@ export async function generateSuiviBothPdf(
             undefined,
             'NONE',
           );
-          const watermarkText = `Powered by ${POWERED_BY}`;
+          const watermarkText = POWERED_BY;
           doc.setFontSize(5);
           doc.setFont('helvetica', 'normal');
           doc.setFillColor(50, 50, 50);

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { Projet } from '../types/projets.types';
+import { NO_CHANTIER_PROJET } from '../constants/chantier';
 import type { Folder } from '../types/folders.types';
 
 function toDateString(d: Date): string {
@@ -42,7 +43,7 @@ const NavbarFiltersContext = createContext<NavbarFiltersContextValue | null>(nul
 export const NavbarFiltersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dateDebut, setDateDebut] = useState(getOneWeekAgoDateString);
   const [dateFin, setDateFin] = useState(getTodayDateString);
-  const [selectedChantier, setSelectedChantier] = useState<Projet | null>(null);
+  const [selectedChantier, setSelectedChantier] = useState<Projet | null>(NO_CHANTIER_PROJET);
   const [selectedFolder, setSelectedFolderState] = useState<Folder | null>(null);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);

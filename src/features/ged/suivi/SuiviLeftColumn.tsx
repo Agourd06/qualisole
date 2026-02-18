@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import type { GedItem } from '../types/ged.types';
-import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, getCreatedAtRaw, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { DROPPABLE_GEDS, DEFAULT_PAGE_SIZE } from './constants';
 
@@ -87,7 +87,7 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
               paginatedItems.map((ged, index) => (
                 <Draggable
                   key={ged.id}
-                  draggableId={ged.id}
+                  draggableId={`left-${ged.id}`}
                   index={index}
                   isDragDisabled={disabled}
                 >
@@ -95,11 +95,11 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`relative rounded-2xl ${dragSnapshot.isDragging ? 'opacity-90 shadow-lg' : ''}`}
+                      className={`flex items-start gap-2 rounded-2xl ${dragSnapshot.isDragging ? 'opacity-90 shadow-lg' : ''}`}
                     >
                       <div
                         {...provided.dragHandleProps}
-                        className="absolute top-2 right-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-white/90 text-neutral-500 shadow-sm transition hover:bg-white hover:text-neutral-700 active:cursor-grabbing"
+                        className="mt-4 flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded-full bg-neutral-200 text-neutral-500 transition hover:bg-neutral-300 hover:text-neutral-700 active:cursor-grabbing"
                         aria-label={t('dragHandleAria')}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -112,17 +112,20 @@ export const SuiviLeftColumn: React.FC<SuiviLeftColumnProps> = ({
                           <circle cx="15" cy="18" r="1.5" />
                         </svg>
                       </div>
-                      <QualiphotoCard
-                        imageUrl={buildImageUrl(ged)}
-                        title={ged.title || t('noTitle')}
-                        description={ged.description}
-                        author={ged.author}
-                        chantier={ged.chantier ?? ged.categorie}
-                        createdAt={formatDisplayDate(ged.created_at)}
-                        onClick={() => onCardClick(ged)}
-                        isVideo={isVideoUrl(ged.url)}
-                        isAudio={isAudioUrl(ged.url)}
-                      />
+                      <div className="min-w-0 flex-1">
+                        <QualiphotoCard
+                          imageUrl={buildImageUrl(ged)}
+                          title={ged.title || t('noTitle')}
+                          description={ged.description}
+                          author={ged.author}
+                          chantier={ged.chantier ?? ged.categorie}
+                          createdAt={getCreatedAtRaw(ged) ?? ''}
+                          onClick={() => onCardClick(ged)}
+                          ged={ged}
+                          isVideo={isVideoUrl(ged.url)}
+                          isAudio={isAudioUrl(ged.url)}
+                        />
+                      </div>
                     </div>
                   )}
                 </Draggable>

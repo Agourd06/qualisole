@@ -11,6 +11,7 @@ export default {
     logoutAria: 'Log out',
   },
   filters: {
+    noChantier: 'No chantier',
     date: 'Date',
     dateDebut: 'Date Début',
     dateFin: 'Date Fin',
@@ -27,6 +28,9 @@ export default {
     folderTitle: 'Title',
   },
   qualiphotoPage: {
+    filterAll: 'All',
+    filterWithoutChantier: 'Without chantier',
+    filterWithoutFolder: 'Without folder',
     filterDateAria: 'Filter by creation date',
     filterAuthor: 'Author',
     filterAuthorPlaceholder: 'All authors',
@@ -59,6 +63,7 @@ export default {
     movingRefreshing: 'Moving to folder… Refreshing data.',
     dragHandleAria: 'Drag to move to folder',
     dropHere: 'Drop here to add to folder',
+    dropHereChantier: 'Drop a GED here to assign to chantier. Click to edit.',
     dropHereToUnassign: 'Drop here to unassign',
     removePhoto: 'Remove photo',
     mediaTypeImage: 'Image',
@@ -152,6 +157,8 @@ export default {
     saveError: 'Error while saving.',
     generatePdf: 'Generate PDF',
     generatingPdf: 'Generating…',
+    voiceNoteLabel: 'Voice note',
+    playVoiceNoteAria: 'Play voice note',
   },
   auth: {
     identifierLabel: 'Identifier',
@@ -172,6 +179,7 @@ export default {
     requiredPassword: 'Password is required',
   },
   chantierPage: {
+    noChantierLabel: 'No chantier',
     gedsAria: 'GEDs to assign',
     allGedsAria: 'All GEDs',
     chantierDropAria: 'Chantier GEDs',
@@ -180,7 +188,6 @@ export default {
     noChantierGeds: 'No GEDs in this chantier yet.',
     gedCount: 'GED(s)',
     assignToChantier: 'Assign to chantier',
-    dropHere: 'Drop a GED here to assign. Click to edit.',
     selectChantier: 'Select a chantier from the top filter.',
     assignError: 'Failed to assign. Try again.',
     assigning: 'Assigning…',

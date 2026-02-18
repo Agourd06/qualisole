@@ -5,20 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { updateGed } from '../services/ged.service';
 import { generateQualiphotoPdf } from '../utils/qualiphotoPdf';
 import { fetchImageAsDataUrl } from '../utils/gedExportUtils';
-import { getMediaType } from '../utils/qualiphotoHelpers';
+import { formatDisplayDate, getCreatedAtDisplay, getMediaType, buildVoiceUrl } from '../utils/qualiphotoHelpers';
 import { useAssociatedGeds } from '../hooks/useAssociatedGeds';
 import { AssociatedGedsList } from './AssociatedGedsList';
 import { FullScreenImageZoom } from '../../../components/ui/FullScreenImageZoom';
 import { POWERED_BY } from '../../../utils/constants';
+import { MapPinIcon, PoweredByStarsIcon, ModeIcon } from './QualiphotoGallerySection';
 import type { GedItem } from '../types/ged.types';
-
-function formatDisplayDate(iso: string): string {
-  const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
 
 const PencilIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -152,7 +145,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
         imageDataUrl = await fetchImageAsDataUrl(imageUrl);
       }
       // For video/audio, imageDataUrl stays null; PDF shows title/author/description only
-      const photoDate = formatDisplayDate(ged.created_at);
+      const photoDate = getCreatedAtDisplay(ged);
       await generateQualiphotoPdf(
         {
           title: titleValue.trim() || t('defaultTitle'),
@@ -186,7 +179,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
 
   if (!ged) return null;
 
-  const photoDate = formatDisplayDate(ged.created_at);
+  const photoDate = getCreatedAtDisplay(ged);
   const cardTitle = titleValue.trim() || t('defaultTitle');
   const mediaType = getMediaType(ged.url);
   const isImage = mediaType === 'image';
@@ -204,7 +197,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
         {/* Header: centered title (30%) + close */}
         <header className="sticky top-0 z-10 flex w-full items-center justify-between border-b border-[#E5E7EB] bg-white px-6 py-4">
           <div className="flex-1" aria-hidden />
-          <div className="flex w-[30%] min-w-[180px] shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-primary/70 bg-white focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/30">
+          <div className="flex w-[30%] min-w-[180px] shrink-0 items-center justify-center gap-2 rounded-lg border-2 border-primary bg-white focus-within:ring-2 focus-within:ring-primary/30">
             <input
               type="text"
               value={titleValue}
@@ -238,29 +231,29 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-          {/* Main content: image left | description right */}
-          <div className="flex flex-col gap-6 px-6 py-6 md:flex-row md:items-start md:gap-4 md:px-6 md:py-8">
-            {/* Media – 45% width (unchanged) */}
-            <section className="flex w-full flex-col md:w-[45%] md:shrink-0 md:min-h-0">
-            <div className="flex h-7 shrink-0 items-center px-0.5 md:mb-2">
-              <span
-                className="text-xs font-medium uppercase tracking-wider text-neutral-500"
-                aria-hidden
-              >
-                {isImage && t('mediaTypeImage')}
-                {isVideo && t('mediaTypeVideo')}
-                {isAudio && t('mediaTypeAudio')}
-              </span>
-            </div>
-            <div className="group relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#E5E7EB] bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-                <div
-                  className="absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded px-2 py-1 text-[0.65rem] font-medium tracking-wide text-white/90 shadow-lg"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-                  aria-hidden
-                >
-                  Powered by {POWERED_BY}
-                </div>
+        <div className="flex flex-1 min-h-0 flex-col overflow-y-auto">
+          {/* Main content: image left | description right – row fills to bottom */}
+          <div className="flex flex-1 min-h-0 flex-col gap-4 px-6 py-4 md:flex-row md:items-stretch md:gap-4 md:px-6 md:py-6">
+            {/* Media – 45% width */}
+            <section className="flex w-full flex-col md:w-[45%] md:min-h-0 md:shrink-0">
+            <div className="group relative min-h-0 flex-1 overflow-hidden rounded-xl border-2 border-primary bg-white p-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                {/* Top overlays: map | [stars + poweredby] | mode */}
+                {(isImage || isVideo) && (
+                  <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between pt-2 px-3" aria-hidden>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-500/60">
+                      <MapPinIcon visible={ged.visible} />
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1">
+                      <PoweredByStarsIcon iaanalyse={ged.iaanalyse} />
+                      <span className="text-[0.6rem] font-medium tracking-wide text-white">
+                        {ged.poweredby ?? POWERED_BY}
+                      </span>
+                    </div>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-500/60">
+                      <ModeIcon mode={ged.mode} />
+                    </div>
+                  </div>
+                )}
                 {isImage && (
                   <button
                     type="button"
@@ -285,10 +278,6 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                       className="h-full w-full object-cover object-top overflow-hidden bg-neutral-900"
                       aria-label={cardTitle}
                     />
-                    <div className="flex justify-between items-center gap-2 px-4 py-2 text-xs text-neutral-600 bg-white/80">
-                      <span className="min-w-0 truncate font-medium">{ged.author || '—'}</span>
-                      <span className="shrink-0 tabular-nums">{photoDate}</span>
-                    </div>
                   </div>
                 )}
                 {isAudio && (
@@ -310,17 +299,20 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
                     </div>
                   </div>
                 )}
-                {isImage && (
+                {(isImage || isVideo) && (
                   <div
-                    className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-8 pb-3 px-5 pointer-events-none"
+                    className="absolute inset-x-0 bottom-0 bg-white/95 backdrop-blur-sm border-t border-primary/30 px-4 py-2.5 pointer-events-none"
                     aria-hidden
                   >
-                    <div className="flex justify-between items-center gap-4">
-                      <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-white opacity-95 drop-shadow-lg">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[0.8rem] font-medium text-primary">
                         {ged.author || '—'}
                       </span>
-                      <span className="shrink-0 tabular-nums text-[0.8125rem] font-medium text-white/90 drop-shadow-lg">
-                        {photoDate}
+                      <span className="shrink-0 truncate max-w-[120px] text-center text-[0.75rem] text-primary">
+                        {ged.chantier ?? ged.categorie ?? '—'}
+                      </span>
+                      <span className="min-w-0 flex-1 shrink-0 tabular-nums text-right text-[0.8rem] font-medium text-primary">
+                        {formatDisplayDate(ged.created_at)}
                       </span>
                     </div>
                   </div>
@@ -328,23 +320,41 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
               </div>
             </section>
 
-          {/* Description – flex-1 takes remaining space (image stays 45%), smaller gap = less empty space */}
-          <section className="flex w-full flex-col md:min-w-0 md:flex-1 md:shrink-0">
-            <div className="hidden h-7 shrink-0 md:mb-2 md:block" aria-hidden />
-            <div className="qualiphoto-modal-editor qualiphoto-modal-editor-focus w-full">
+          {/* Description – fills from top to bottom */}
+          <section className="flex w-full flex-col md:min-h-0 md:min-w-0 md:flex-1 md:shrink-0">
+            <div className="qualiphoto-modal-editor qualiphoto-modal-editor-focus flex min-h-0 flex-1 flex-col">
               <RichTextEditor
                 key={`${ged.id}-${editorKey}`}
                 value={descriptionValue}
                 onChange={setDescriptionValue}
                 placeholder={t('noDescription')}
-                rows={4}
                 readOnly={!descriptionEditEnabled}
                 showCharCount={true}
-                className="w-full"
+                className="h-full border-primary"
+                height="100%"
               />
             </div>
           </section>
           </div>
+
+          {/* Voice note – under image and description, when present */}
+          {ged.urlvoice && (() => {
+            const voiceUrl = buildVoiceUrl(ged.urlvoice);
+            if (!voiceUrl) return null;
+            return (
+              <div className="px-6 py-3 md:px-8">
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">{t('voiceNoteLabel')}</p>
+                  <audio
+                    src={voiceUrl}
+                    controls
+                    className="w-full max-w-md"
+                    aria-label={t('playVoiceNoteAria')}
+                  />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Fullscreen image overlay with zoom */}
           {isImage && isImageFullscreen && (

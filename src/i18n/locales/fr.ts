@@ -11,6 +11,7 @@ export default {
     logoutAria: 'Se déconnecter',
   },
   filters: {
+    noChantier: 'Sans chantier',
     date: 'Date',
     dateDebut: 'Date Début',
     dateFin: 'Date Fin',
@@ -27,6 +28,9 @@ export default {
     folderTitle: 'Titre',
   },
   qualiphotoPage: {
+    filterAll: 'Tous',
+    filterWithoutChantier: 'Sans chantier',
+    filterWithoutFolder: 'Sans dossier',
     filterDateAria: 'Filtrer par date de création',
     filterAuthor: 'Auteur',
     filterAuthorPlaceholder: 'Tous les auteurs',
@@ -60,6 +64,7 @@ export default {
     dragHandleAria: 'Glisser pour déplacer vers un dossier',
     dropHere: 'Déposez ici pour ajouter au dossier',
     dropHereToUnassign: 'Déposez ici pour retirer du dossier',
+    dropHereChantier: 'Déposez un GED ici pour l’assigner au chantier. Cliquez pour modifier.',
     removePhoto: 'Retirer la photo',
     mediaTypeImage: 'Image',
     mediaTypeVideo: 'Vidéo',
@@ -152,6 +157,8 @@ export default {
     saveError: "Erreur lors de l'enregistrement.",
     generatePdf: 'Générer le PDF',
     generatingPdf: 'Génération…',
+    voiceNoteLabel: 'Note vocale',
+    playVoiceNoteAria: 'Lire la note vocale',
   },
   auth: {
     identifierLabel: 'identifier',
@@ -172,6 +179,7 @@ export default {
     requiredPassword: 'Le mot de passe est requis',
   },
   chantierPage: {
+    noChantierLabel: 'Sans chantier',
     gedsAria: 'GED à assigner',
     allGedsAria: 'Tous les GED',
     chantierDropAria: 'GED du chantier',

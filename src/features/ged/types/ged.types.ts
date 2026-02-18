@@ -36,6 +36,16 @@ export interface GedItem {
   updated_at: string;
   /** View count; incremented when user opens the GED detail modal. */
   vue?: number;
+  /** false/0 = green stars, true/1 = yellow stars (IA analysis status). */
+  iaanalyse?: number | boolean;
+  /** 0 = green map pin, 1 = orange map pin (visibility). */
+  visible?: number;
+  /** upload | capture | Video | Frame – determines top-right icon. */
+  mode?: string | null;
+  /** Powered-by label (e.g. MUNTADAACOM), shown with icon in top middle. */
+  poweredby?: string | null;
+  /** Voice note URL (e.g. /uploads/.../voicenote.m4a). Null when no voice note. */
+  urlvoice?: string | null;
 }
 
 export type GedListResponse = GedItem[];

@@ -1,11 +1,78 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, formatDisplayDate, getCreatedAtRaw, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { POWERED_BY } from '../../../utils/constants';
 import type { GedItem } from '../types/ged.types';
 
 const MEDIA_BADGE_CLASS =
   'absolute left-2 top-2 z-[1] rounded-md px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide shadow-sm';
+
+/** Map pin: visible 0 = green, 1 = orange */
+export function MapPinIcon({ visible }: { visible?: number }) {
+  const color = visible === 1 ? 'text-primary' : 'text-green-500';
+  return (
+    <svg className={`h-5 w-5 ${color}`} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+    </svg>
+  );
+}
+
+/** Powered-by stars SVG: iaanalyse true/1 = yellow, false/0 = green */
+export function PoweredByStarsIcon({ iaanalyse }: { iaanalyse?: number | boolean }) {
+  const isTrue = iaanalyse === 1 || iaanalyse === true;
+  const colorClass = isTrue ? 'text-yellow-400' : 'text-green-500';
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className={`h-6 w-6 shrink-0 ${colorClass}`}
+      style={{ fill: 'currentColor', verticalAlign: 'middle', overflow: 'hidden' }}
+      viewBox="0 0 1024 1024"
+      aria-hidden
+    >
+      <path d="M602.24 246.72a17.28 17.28 0 0 0-11.84-16.32l-42.88-14.4A90.56 90.56 0 0 1 490.24 160l-14.4-42.88a17.28 17.28 0 0 0-32 0L428.8 160a90.56 90.56 0 0 1-57.28 57.28l-42.88 14.4a17.28 17.28 0 0 0 0 32l42.88 14.4a90.56 90.56 0 0 1 57.28 57.28l14.4 42.88a17.28 17.28 0 0 0 32 0l14.4-42.88a90.56 90.56 0 0 1 57.28-57.28l42.88-14.4a17.28 17.28 0 0 0 12.48-16.96z m301.12 221.76l-48.32-16a101.44 101.44 0 0 1-64-64l-16-48.32a19.2 19.2 0 0 0-36.8 0l-16 48.32a101.44 101.44 0 0 1-64 64l-48.32 16a19.2 19.2 0 0 0 0 36.8l48.32 16a101.44 101.44 0 0 1 64 64l16 48.32a19.2 19.2 0 0 0 36.8 0l16-48.32a101.44 101.44 0 0 1 64-64l48.32-16a19.2 19.2 0 0 0 0-36.8z m-376.64 195.52l-64-20.8a131.84 131.84 0 0 1-83.52-83.52l-20.8-64a25.28 25.28 0 0 0-47.68 0l-20.8 64a131.84 131.84 0 0 1-82.24 83.52l-64 20.8a25.28 25.28 0 0 0 0 47.68l64 20.8a131.84 131.84 0 0 1 83.52 83.84l20.8 64a25.28 25.28 0 0 0 47.68 0l20.8-64a131.84 131.84 0 0 1 83.52-83.52l64-20.8a25.28 25.28 0 0 0 0-47.68z" />
+    </svg>
+  );
+}
+
+/** Mode icon: upload | capture | Video | Frame */
+export function ModeIcon({ mode }: { mode?: string | null }) {
+  const m = (mode ?? '').toLowerCase();
+  const iconClass = 'h-5 w-5 text-primary';
+  if (m === 'upload') {
+    return (
+      <svg className={iconClass} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+      </svg>
+    );
+  }
+  if (m === 'capture') {
+    return (
+      <svg className={iconClass} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <path d="M12 12m-3.2 0a3.2 3.2 0 1 0 6.4 0 3.2 3.2 0 1 0 -6.4 0" />
+        <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
+      </svg>
+    );
+  }
+  if (m === 'video') {
+    return (
+      <svg className={iconClass} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" />
+      </svg>
+    );
+  }
+  if (m === 'frame') {
+    return (
+      <svg className={iconClass} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 10h9v9H5z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={iconClass} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+    </svg>
+  );
+}
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -80,14 +147,6 @@ function MediaThumbnail({
           muted
           aria-label={alt}
         />
-        <div
-          className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded px-1.5 py-0.5 text-[0.55rem] font-medium tracking-wide text-white/90"
-          style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-          aria-hidden
-        >
-          Powered by {POWERED_BY}
-        </div>
-        <span className={`${MEDIA_BADGE_CLASS} bg-primary text-white`}>{videoLabel}</span>
       </div>
     );
   }
@@ -99,13 +158,6 @@ function MediaThumbnail({
         className={className}
         loading="lazy"
       />
-      <div
-        className="absolute left-1/2 top-1.5 z-10 -translate-x-1/2 rounded px-1.5 py-0.5 text-[0.55rem] font-medium tracking-wide text-white/90"
-        style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
-        aria-hidden
-      >
-        Powered by {POWERED_BY}
-      </div>
     </div>
   );
 }
@@ -190,6 +242,12 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
     );
   }
 
+  const iaanalyse = ged?.iaanalyse;
+  const visible = ged?.visible;
+  const mode = ged?.mode ?? null;
+  const chantierLabel = chantier ?? ged?.categorie ?? '—';
+  const poweredbyLabel = ged?.poweredby ?? POWERED_BY;
+
   return (
   <article
     role={onClick ? 'button' : undefined}
@@ -211,26 +269,34 @@ export const QualiphotoCard: React.FC<QualiphotoCardProps> = ({
         videoLabel={t('mediaTypeVideo')}
         audioLabel={t('mediaTypeAudio')}
       />
+      {/* Top overlays: map | [stars SVG (iaanalyse) + poweredby] | mode */}
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between pt-2 px-3" aria-hidden>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-500/60">
+          <MapPinIcon visible={visible} />
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1">
+          <PoweredByStarsIcon iaanalyse={iaanalyse} />
+          <span className="text-[0.6rem] font-medium tracking-wide text-white">{poweredbyLabel}</span>
+        </div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-500/60">
+          <ModeIcon mode={mode} />
+        </div>
+      </div>
+      {/* Bottom bar: author left, chantier middle, date right */}
       <div
-        className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pt-12 pb-3 px-5"
+        className="absolute inset-x-0 bottom-0 bg-black/60 px-4 py-2.5"
         aria-hidden
       >
-        <div className="flex justify-between items-center gap-4 mb-2">
-          <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-white opacity-95 drop-shadow-lg">
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 flex-1 truncate text-[0.8rem] font-medium text-primary">
             {author || '—'}
           </span>
-          <span className="shrink-0 tabular-nums text-[0.8125rem] font-medium text-white/90 drop-shadow-lg">
+          <span className="shrink-0 truncate max-w-[120px] text-center text-[0.75rem] text-primary">
+            {chantierLabel}
+          </span>
+          <span className="min-w-0 flex-1 shrink-0 tabular-nums text-right text-[0.8rem] font-medium text-primary">
             {formatDisplayDate(createdAt)}
           </span>
-        </div>
-        <div className="flex justify-between items-center gap-4">
-          <span className="min-w-0 truncate text-[0.75rem] text-white/85 drop-shadow-lg">
-            {chantier || '—'}
-          </span>
-          <span className="flex-1 text-center text-[0.75rem] text-white/85 drop-shadow-lg">
-            {truncateTitle(title)}
-          </span>
-          <span className="min-w-0 opacity-0">—</span>
         </div>
       </div>
     </div>
@@ -329,9 +395,9 @@ export const QualiphotoGallerySection: React.FC<QualiphotoGallerySectionProps> =
             title={ged.title || noTitleLabel}
             author={ged.author}
             chantier={ged.chantier ?? ged.categorie}
-            createdAt={ged.created_at}
+            createdAt={getCreatedAtRaw(ged) ?? ''}
             onClick={() => onCardClick(ged)}
-            ged={draggable ? ged : undefined}
+            ged={ged}
             onDragStart={draggable ? onDragStart : undefined}
             isVideo={isVideoUrl(ged.url)}
             isAudio={isAudioUrl(ged.url)}

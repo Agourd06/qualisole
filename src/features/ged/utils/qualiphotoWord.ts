@@ -140,7 +140,7 @@ export async function generateFolderGedsTableWord(
       leftParagraphs.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: `Powered by ${POWERED_BY}`, size: 10, color: '6B7280' })],
+          children: [new TextRun({ text: POWERED_BY, size: 10, color: '6B7280' })],
           spacing: { after: 40 },
         }),
       );

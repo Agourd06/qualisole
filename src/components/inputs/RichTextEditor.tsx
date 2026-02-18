@@ -7,6 +7,8 @@ export interface RichTextEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   rows?: number;
+  /** Override computed height (e.g. '100%' to fill parent). */
+  height?: string;
   id?: string;
   'aria-labelledby'?: string;
   'aria-label'?: string;
@@ -38,6 +40,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onChange,
   placeholder = 'Start typing...',
   rows = 6,
+  height: heightProp,
   id,
   'aria-labelledby': ariaLabelledBy,
   'aria-label': ariaLabel,
@@ -55,7 +58,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       .catch(() => setCssLoaded(true));
   }, []);
 
-  const editorHeight = useMemo(() => `${Math.max(rows * 1.6, 8)}rem`, [rows]);
+  const editorHeight = useMemo(
+    () => heightProp ?? `${Math.max(rows * 1.6, 8)}rem`,
+    [rows, heightProp]
+  );
   const charCount = useMemo(() => getTextLength(value), [value]);
 
   /* Always show full toolbar (Remarks-style); readOnly only disables editing. */
@@ -70,14 +76,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         ['link', 'image', 'removeFormat'],
       ],
       fontSize: [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 30, 36, 48],
-      minHeight: '200px',
-      maxHeight: '600px',
+      minHeight: heightProp === '100%' ? '300px' : '200px',
+      maxHeight: heightProp === '100%' ? 'none' : '600px',
       resizingBar: true,
       showPathLabel: false,
       charCounter: false,
       readOnly,
     }),
-    [readOnly],
+    [readOnly, heightProp],
   );
 
   if (!isClient || !cssLoaded) {
@@ -86,20 +92,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   return (
     <div
-      className={`rich-text-editor-qualisol w-full overflow-hidden rounded-xl border-2 border-neutral-200 bg-white shadow-sm ${className}`}
+      className={`rich-text-editor-qualisol w-full overflow-hidden rounded-xl border-2 border-neutral-200 bg-white shadow-sm ${heightProp === '100%' ? 'h-full flex flex-col min-h-0' : ''} ${className}`}
       id={id}
       aria-labelledby={ariaLabelledBy}
       aria-label={ariaLabel}
     >
-      <Suspense fallback={fallbackView}>
-        <SunEditor
+      <div className={heightProp === '100%' ? 'flex-1 min-h-0 overflow-hidden' : undefined}>
+        <Suspense fallback={fallbackView}>
+          <SunEditor
           onChange={(content: string) => onChange(content)}
           setContents={value}
           height={editorHeight}
           placeholder={placeholder}
           setOptions={editorOptions}
-        />
-      </Suspense>
+          />
+        </Suspense>
+      </div>
       {showCharCount && (
         <div className="flex justify-end border-t border-neutral-100 bg-neutral-50/80 px-3 py-1.5">
           <span className="text-xs text-neutral-500 tabular-nums">

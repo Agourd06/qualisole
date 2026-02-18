@@ -4,9 +4,10 @@ import type { DropResult } from '@hello-pangea/dnd';
 import { Navbar } from '../../../components/layout/Navbar';
 import { useTranslation } from 'react-i18next';
 import { useNavbarFilters } from '../../../context/NavbarFiltersContext';
-import { getGeds, moveGedToMain } from '../services/ged.service';
+import { getGeds, moveGedToMain, setGedChantier } from '../services/ged.service';
 import type { GedMovePayload } from '../services/ged.service';
-import { buildImageUrl, isImageOrVideoUrl, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { isNoChantierSelected } from '../../../constants/chantier';
+import { buildImageUrl, getCreatedAtRaw, isImageOrVideoUrl, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { applyOrderToItems, filterFolderImageGeds } from '../utils/folderGedFilter';
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { QualiphotoDetailModal } from '../components/QualiphotoDetailModal';
@@ -34,6 +35,17 @@ const GED_LIMIT = 500;
 const DROPPABLE_LEFT = 'unassigned';
 const DROPPABLE_RIGHT = 'assigned';
 
+/** Left column filter mode */
+type LeftFilterMode = 'all' | 'withoutChantier' | 'withoutFolder';
+
+function filterByChantier(items: GedItem[], chantierId: string, chantierTitle: string): GedItem[] {
+  return items.filter(
+    (g) =>
+      (g as GedItem & { chantier_id?: string }).chantier_id === chantierId ||
+      (g.chantier != null && g.chantier.trim() !== '' && g.chantier === chantierTitle),
+  );
+}
+
 function toDateOnly(isoOrDateStr: string): string {
   if (!isoOrDateStr) return '';
   const d = new Date(isoOrDateStr);
@@ -54,7 +66,7 @@ function toMovePayload(ged: GedItem): GedMovePayload {
 }
 
 export const QualiphotoPage: React.FC = () => {
-  const { t } = useTranslation('qualiphotoPage');
+  const { t } = useTranslation(['qualiphotoPage', 'chantierPage']);
   const {
     selectedFolder,
     selectedChantier,
@@ -69,9 +81,34 @@ export const QualiphotoPage: React.FC = () => {
   const [leftError, setLeftError] = useState<string | null>(null);
   const [selectedGed, setSelectedGed] = useState<GedItem | null>(null);
   const [leftPage, setLeftPage] = useState(1);
+  const [leftFilterMode, setLeftFilterMode] = useState<LeftFilterMode>('withoutFolder');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [chantierRightItems, setChantierRightItems] = useState<GedItem[]>([]);
+  const [chantierRightLoading, setChantierRightLoading] = useState(false);
+  const [chantierRightError, setChantierRightError] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
   /** Bump after move+refetch so DragDropContext remounts and avoids stale draggable refs. */
   const [dndKey, setDndKey] = useState(0);
+
+  const fetchChantierGeds = useCallback(
+    async (chantierId: string, chantierTitle: string): Promise<GedItem[]> => {
+      const withFilter = await getGeds({
+        kind: QUALIPHOTO_KIND,
+        idsource: IDSOURCE_MAIN,
+        limit: GED_LIMIT,
+        chantierId,
+      });
+      const filtered = filterByChantier(withFilter, chantierId, chantierTitle);
+      if (filtered.length > 0) return filtered;
+      const fallback = await getGeds({
+        kind: QUALIPHOTO_KIND,
+        idsource: IDSOURCE_MAIN,
+        limit: GED_LIMIT,
+      });
+      return filterByChantier(fallback, chantierId, chantierTitle);
+    },
+    [],
+  );
 
   /** Fetch unassigned GEDs for both idsource=0 and empty GUID, then merge and dedupe by id. */
   const fetchUnassignedGeds = useCallback(async (): Promise<GedItem[]> => {
@@ -133,28 +170,71 @@ export const QualiphotoPage: React.FC = () => {
   const { order: folderImageOrder, setOrder: setFolderImageOrder } =
     useFolderImageOrder(folderId);
 
+  const refetchChantierRight = useCallback(async () => {
+    if (!selectedChantier || isNoChantierSelected(selectedChantier) || selectedFolder) {
+      setChantierRightItems([]);
+      return;
+    }
+    setChantierRightLoading(true);
+    setChantierRightError(null);
+    try {
+      const list = await fetchChantierGeds(
+        selectedChantier.id,
+        selectedChantier.title ?? '',
+      );
+      setChantierRightItems(list.filter((g) => g.url && isImageOrVideoUrl(g.url)));
+    } catch (err) {
+      setChantierRightError(err instanceof Error ? err.message : 'LOAD_ERROR');
+      setChantierRightItems([]);
+    } finally {
+      setChantierRightLoading(false);
+    }
+  }, [selectedChantier, selectedFolder, fetchChantierGeds]);
+
+  useEffect(() => {
+    if (!selectedChantier || isNoChantierSelected(selectedChantier) || selectedFolder) {
+      setChantierRightItems([]);
+      setChantierRightError(null);
+      return;
+    }
+    let cancelled = false;
+    setChantierRightLoading(true);
+    setChantierRightError(null);
+    fetchChantierGeds(selectedChantier.id, selectedChantier.title ?? '')
+      .then((list) => {
+        if (!cancelled) {
+          setChantierRightItems(list.filter((g) => g.url && isImageOrVideoUrl(g.url)));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setChantierRightError(err instanceof Error ? err.message : 'LOAD_ERROR');
+          setChantierRightItems([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setChantierRightLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedChantier, selectedFolder, fetchChantierGeds]);
+
   useEffect(() => {
     if (refreshTrigger > 0) {
       refetchLeft();
       refetchFolderList();
+      refetchChantierRight();
       setDndKey((k) => k + 1);
     }
-  }, [refreshTrigger, refetchLeft, refetchFolderList]);
+  }, [refreshTrigger, refetchLeft, refetchFolderList, refetchChantierRight]);
 
   const orderedFolderItems = useMemo(
     () => applyOrderToItems(folderItems, folderImageOrder),
     [folderItems, folderImageOrder],
   );
 
-  /** Base list: unassigned GEDs or folder GEDs when a dossier is selected. */
-  const leftBaseList = useMemo(
-    () => (selectedFolder ? orderedFolderItems : leftItems),
-    [selectedFolder, orderedFolderItems, leftItems],
-  );
-
-  /** Apply advanced filters: author, date range (inclusive), chantier (when selected). */
+  /** Left column: unassigned GEDs, filtered by date, author, and left filter mode. */
   const leftFilteredByFilters = useMemo(() => {
-    return leftBaseList.filter((ged) => {
+    return leftItems.filter((ged) => {
       if (selectedAuthorId != null && selectedAuthorId !== '') {
         const authorId = ged.idauthor ?? (ged as { id_author?: string }).id_author;
         if (String(authorId ?? '') !== String(selectedAuthorId)) return false;
@@ -162,19 +242,19 @@ export const QualiphotoPage: React.FC = () => {
       const gedDateOnly = toDateOnly(ged.created_at);
       if (dateDebut && gedDateOnly < dateDebut) return false;
       if (dateFin && gedDateOnly > dateFin) return false;
-      if (selectedChantier?.title != null && selectedChantier.title !== '') {
-        const gedChantier = ged.chantier ?? ged.categorie ?? '';
-        if (gedChantier !== selectedChantier.title) return false;
+      if (leftFilterMode === 'withoutChantier') {
+        const chantierId = (ged as GedItem & { chantier_id?: string }).chantier_id;
+        const hasChantier =
+          (chantierId != null && String(chantierId).trim() !== '') ||
+          (ged.chantier != null && ged.chantier.trim() !== '');
+        if (hasChantier) return false;
+      }
+      if (leftFilterMode === 'withoutFolder') {
+        if (!isUnassignedIdsource(ged.idsource)) return false;
       }
       return true;
     });
-  }, [
-    leftBaseList,
-    selectedAuthorId,
-    dateDebut,
-    dateFin,
-    selectedChantier?.title,
-  ]);
+  }, [leftItems, selectedAuthorId, dateDebut, dateFin, leftFilterMode]);
 
   const leftImageItems = useMemo(
     () =>
@@ -182,9 +262,9 @@ export const QualiphotoPage: React.FC = () => {
         (item) =>
           item.url &&
           isImageOrVideoUrl(item.url) &&
-          (selectedFolder ? true : isUnassignedIdsource(item.idsource)),
+          isUnassignedIdsource(item.idsource),
       ),
-    [leftFilteredByFilters, selectedFolder],
+    [leftFilteredByFilters],
   );
 
   const orderedFolderImageIds = useMemo(
@@ -217,8 +297,9 @@ export const QualiphotoPage: React.FC = () => {
       }
       refetchLeft();
       refetchFolderList();
+      refetchChantierRight();
     },
-    [selectedGed, refetchLeft, refetchFolderList],
+    [selectedGed, refetchLeft, refetchFolderList, refetchChantierRight],
   );
 
   const handleDragEnd = useCallback(
@@ -252,7 +333,8 @@ export const QualiphotoPage: React.FC = () => {
       ) {
         if (isAssigning) return;
 
-        const ged = orderedFolderItems.find((i) => String(i.id) === String(draggableId));
+        const rawId = String(draggableId).replace(/^right-/, '');
+        const ged = orderedFolderItems.find((i) => String(i.id) === rawId);
         if (!ged) return;
 
         setIsAssigning(true);
@@ -271,31 +353,58 @@ export const QualiphotoPage: React.FC = () => {
         source.droppableId === DROPPABLE_LEFT &&
         destination.droppableId === DROPPABLE_RIGHT
       ) {
-        if (!selectedFolder || isAssigning) return;
+        if (isAssigning || leftFilterMode !== 'withoutFolder') return;
 
-        const ged = leftImageItems.find((i) => i.id === draggableId);
+        const rawId = String(draggableId).replace(/^left-/, '');
+        const ged = leftImageItems.find((i) => i.id === rawId);
         if (!ged) return;
 
-        setIsAssigning(true);
-        try {
-          await moveGedToFolder(toMovePayload(ged));
-          // Left and folder lists refresh inside onSuccess (awaited by hook)
-        } catch {
-          // moveError shown by useMoveGedToFolder
-        } finally {
-          setIsAssigning(false);
+        if (selectedFolder) {
+          setIsAssigning(true);
+          try {
+            await moveGedToFolder(toMovePayload(ged));
+          } catch {
+            // moveError shown by useMoveGedToFolder
+          } finally {
+            setIsAssigning(false);
+          }
+          return;
+        }
+
+        if (selectedChantier && !isNoChantierSelected(selectedChantier)) {
+          setIsAssigning(true);
+          setAssignError(null);
+          try {
+            await setGedChantier({
+              id: ged.id,
+              kind: ged.kind,
+              chantierId: selectedChantier.id,
+              chantier: selectedChantier.title ?? '',
+            });
+            refetchLeft();
+            refetchChantierRight();
+            setDndKey((k) => k + 1);
+          } catch {
+            setAssignError('ASSIGN_ERROR');
+          } finally {
+            setIsAssigning(false);
+          }
         }
       }
     },
     [
       selectedFolder,
+      selectedChantier,
       isAssigning,
+      leftFilterMode,
       leftImageItems,
       moveGedToFolder,
       orderedFolderImageIds,
       orderedFolderItems,
       setFolderImageOrder,
       handleMoveSuccess,
+      refetchLeft,
+      refetchChantierRight,
     ],
   );
 
@@ -315,6 +424,8 @@ export const QualiphotoPage: React.FC = () => {
   useEffect(() => setLeftPage(1), [leftImageItems.length]);
 
   const isAnyPending = isAssigning;
+  /** Allow drag only when folder is selected and left filter is "Without folder" (no chantier-only assign via drag). */
+  const canDragToRight = Boolean(selectedFolder) && leftFilterMode === 'withoutFolder';
 
   const renderLeftContent = () => {
     if (leftLoading) {
@@ -338,7 +449,7 @@ export const QualiphotoPage: React.FC = () => {
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`flex flex-col gap-3 min-h-[200px] rounded-xl p-1 transition-colors ${
-              snapshot.isDraggingOver ? 'ring-2 ring-primary/30 bg-primary/5' : ''
+              snapshot.isDraggingOver && canDragToRight ? 'ring-2 ring-primary/30 bg-primary/5' : ''
             } ${isAnyPending ? 'opacity-60 pointer-events-none' : ''}`}
             aria-label={t('galleryAria')}
           >
@@ -351,20 +462,25 @@ export const QualiphotoPage: React.FC = () => {
             leftPaginated.map((ged, index) => (
               <Draggable
                 key={ged.id}
-                draggableId={ged.id}
+                draggableId={`left-${ged.id}`}
                 index={index}
-                isDragDisabled={isAnyPending}
+                isDragDisabled={isAnyPending || !canDragToRight}
               >
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.draggableProps}
-                    className={`relative ${snapshot.isDragging ? 'opacity-90 shadow-lg rounded-2xl' : ''}`}
+                    className={`flex items-start gap-2 ${snapshot.isDragging ? 'opacity-90 shadow-lg rounded-2xl' : ''}`}
                   >
                     <div
-                      {...provided.dragHandleProps}
-                      className="absolute top-2 right-2 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-lg bg-white/90 text-neutral-500 shadow-sm transition hover:bg-white hover:text-neutral-700 active:cursor-grabbing"
+                      {...(canDragToRight ? provided.dragHandleProps : {})}
+                      className={`mt-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+                        canDragToRight
+                          ? 'cursor-grab bg-neutral-200 text-neutral-500 hover:bg-neutral-300 hover:text-neutral-700 active:cursor-grabbing'
+                          : 'cursor-not-allowed bg-neutral-100 text-neutral-400 pointer-events-none'
+                      }`}
                       aria-label={t('dragHandleAria')}
+                      aria-disabled={!canDragToRight}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -376,16 +492,19 @@ export const QualiphotoPage: React.FC = () => {
                         <circle cx="15" cy="18" r="1.5" />
                       </svg>
                     </div>
-                    <QualiphotoCard
-                      imageUrl={buildImageUrl(ged)}
-                      title={ged.title || t('noTitle')}
-                      author={ged.author}
-                      chantier={ged.chantier ?? ged.categorie}
-                      createdAt={ged.created_at}
-                      onClick={() => setSelectedGed(ged)}
-                      isVideo={isVideoUrl(ged.url)}
-                      isAudio={isAudioUrl(ged.url)}
-                    />
+                    <div className="min-w-0 flex-1">
+                      <QualiphotoCard
+                        imageUrl={buildImageUrl(ged)}
+                        title={ged.title || t('noTitle')}
+                        author={ged.author}
+                        chantier={ged.chantier ?? ged.categorie}
+                        createdAt={getCreatedAtRaw(ged) ?? ''}
+                        onClick={() => setSelectedGed(ged)}
+                        ged={ged}
+                        isVideo={isVideoUrl(ged.url)}
+                        isAudio={isAudioUrl(ged.url)}
+                      />
+                    </div>
                   </div>
                 )}
               </Draggable>
@@ -445,6 +564,41 @@ export const QualiphotoPage: React.FC = () => {
             style={{ width: '33vw' }}
             aria-label={t('galleryAria')}
           >
+            <div className="mb-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setLeftFilterMode('all')}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  leftFilterMode === 'all'
+                    ? 'bg-primary text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                }`}
+              >
+                {t('filterAll')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeftFilterMode('withoutChantier')}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  leftFilterMode === 'withoutChantier'
+                    ? 'bg-primary text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                }`}
+              >
+                {t('filterWithoutChantier')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeftFilterMode('withoutFolder')}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  leftFilterMode === 'withoutFolder'
+                    ? 'bg-primary text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                }`}
+              >
+                {t('filterWithoutFolder')}
+              </button>
+            </div>
             <div>{renderLeftContent()}</div>
             {!leftLoading && !leftError && leftImageItems.length > 0 &&
               renderPagination(leftPage, leftTotalPages, setLeftPage)}
@@ -455,19 +609,124 @@ export const QualiphotoPage: React.FC = () => {
             aria-hidden
           />
 
-          {/* Right: chantier/folder panel (only GEDs with idsource = selected folder id) */}
-          <QualiphotoFolderPanel
-            selectedFolder={selectedFolder}
-            chantierTitle={selectedChantier?.title ?? null}
-            orderedFolderItems={orderedFolderItems}
-            folderLoading={folderLoading}
-            folderError={folderError}
-            moveError={moveError}
-            clearMoveError={clearMoveError}
-            isAssigning={isAssigning}
-            onSelectGed={setSelectedGed}
-            onRefetchFolder={refetchFolderList}
-          />
+          {/* Right: folder panel (when dossier selected) or chantier panel (when chantier only) */}
+          {selectedFolder ? (
+            <QualiphotoFolderPanel
+              selectedFolder={selectedFolder}
+              chantierTitle={selectedChantier?.title ?? null}
+              orderedFolderItems={orderedFolderItems}
+              folderLoading={folderLoading}
+              folderError={folderError}
+              moveError={moveError}
+              clearMoveError={clearMoveError}
+              isAssigning={isAssigning}
+              onSelectGed={setSelectedGed}
+              onRefetchFolder={refetchFolderList}
+              canDropFromLeft={canDragToRight}
+            />
+          ) : selectedChantier && !isNoChantierSelected(selectedChantier) ? (
+            <aside
+              className="flex shrink-0 flex-col pr-8 sm:pr-12 lg:pr-16"
+              style={{ width: '47vw' }}
+              aria-label={t('galleryAria')}
+            >
+              <div className="mb-4 flex items-center gap-2">
+                <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2.5 text-center">
+                  <p className="text-sm font-semibold text-primary truncate">
+                    {selectedChantier.title}
+                    <span className="ml-2 text-primary/80">
+                      · {chantierRightItems.length} {t('chantierPage:gedCount', 'GED(s)')}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => refetchChantierRight()}
+                  disabled={chantierRightLoading}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary disabled:opacity-50"
+                  aria-label={t('refreshFolderGeds')}
+                  title={t('refreshFolderGeds')}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
+              {assignError && (
+                <div className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {assignError === 'ASSIGN_ERROR' ? t('chantierPage:assignError', 'Failed to assign.') : assignError}
+                  <button type="button" onClick={() => setAssignError(null)} className="ml-2 underline">
+                    {t('dismiss')}
+                  </button>
+                </div>
+              )}
+              {chantierRightLoading ? (
+                <div className="flex min-h-[200px] items-center justify-center rounded-2xl bg-white/50 py-16 text-center text-sm text-neutral-500">
+                  {t('loading')}
+                </div>
+              ) : chantierRightError ? (
+                <div className="rounded-2xl bg-red-50/70 px-6 py-4 text-sm text-red-700">
+                  {chantierRightError === 'LOAD_ERROR' ? t('loadError') : chantierRightError}
+                </div>
+              ) : (
+                <Droppable droppableId={DROPPABLE_RIGHT} isDropDisabled={!canDragToRight}>
+                  {(provided, snapshot) => (
+                    <section
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`flex min-h-[200px] flex-col gap-3 rounded-xl p-1 transition-colors ${
+                        snapshot.isDraggingOver ? 'border-primary bg-primary/10 ring-2 ring-primary/30' : ''
+                      } ${isAssigning ? 'pointer-events-none opacity-60' : ''}`}
+                      aria-label={t('chantierPage:chantierGedsAria', 'GEDs in this chantier')}
+                    >
+                      <p className="text-[0.65rem] font-medium uppercase tracking-wider text-neutral-500">
+                        {t('dropHereChantier', 'Drop a GED here to assign to chantier. Click to edit.')}
+                      </p>
+                      {chantierRightItems.length === 0 ? (
+                        <div className="flex min-h-[120px] flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 py-8 text-center text-sm text-neutral-500">
+                          <p>{t('chantierPage:noChantierGeds', 'No GEDs in this chantier yet.')}</p>
+                        </div>
+                      ) : (
+                        chantierRightItems.map((ged, index) => (
+                          <Draggable key={ged.id} draggableId={`right-${ged.id}`} index={index} isDragDisabled>
+                            {(providedInner) => (
+                              <div
+                                ref={providedInner.innerRef}
+                                {...providedInner.draggableProps}
+                                className="relative"
+                              >
+                                <QualiphotoCard
+                                  imageUrl={buildImageUrl(ged)}
+                                  title={ged.title || t('noTitle')}
+                                  author={ged.author}
+                                  chantier={ged.chantier ?? ged.categorie}
+                                  createdAt={getCreatedAtRaw(ged) ?? ''}
+                                  onClick={() => setSelectedGed(ged)}
+                                  ged={ged}
+                                  isVideo={isVideoUrl(ged.url)}
+                                  isAudio={isAudioUrl(ged.url)}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))
+                      )}
+                      {provided.placeholder}
+                    </section>
+                  )}
+                </Droppable>
+              )}
+            </aside>
+          ) : (
+            <aside
+              className="flex shrink-0 flex-col items-center justify-center pr-8 sm:pr-12 lg:pr-16"
+              style={{ width: '47vw', minHeight: 200 }}
+            >
+              <div className="rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 p-8 text-center text-sm text-neutral-500">
+                <p>{t('selectFolderToSeeGeds')}</p>
+              </div>
+            </aside>
+          )}
           </div>
           {isAssigning && (
             <div

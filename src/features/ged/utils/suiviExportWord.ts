@@ -68,7 +68,7 @@ function cellTableForRow(row: FolderGedRow | null): Table {
       imageParagraphs.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: `Powered by ${POWERED_BY}`, size: 9, color: '6B7280' })],
+          children: [new TextRun({ text: POWERED_BY, size: 9, color: '6B7280' })],
           spacing: { after: 30 },
         }),
       );

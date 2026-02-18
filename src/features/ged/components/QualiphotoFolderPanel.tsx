@@ -3,7 +3,7 @@ import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTranslation } from 'react-i18next';
 import { QualiphotoCard } from './QualiphotoGallerySection';
 import { FolderEditModal } from './FolderEditModal';
-import { buildImageUrl, formatDisplayDate, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, getCreatedAtRaw, getCreatedAtDisplay, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
 import { filterFolderImageGeds } from '../utils/folderGedFilter';
 import { generateFolderGedsTablePdf } from '../utils/qualiphotoPdf';
 import { generateFolderGedsTableWord } from '../utils/qualiphotoWord';
@@ -33,6 +33,8 @@ export interface QualiphotoFolderPanelProps {
   onSelectGed: (ged: GedItem) => void;
   /** Refetch folder GEDs only (right panel). */
   onRefetchFolder?: () => void | Promise<void>;
+  /** When true, drop zone accepts drag from left. Must be true only when "Without folder" filter is selected. */
+  canDropFromLeft?: boolean;
 }
 
 /**
@@ -50,6 +52,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   isAssigning,
   onSelectGed,
   onRefetchFolder,
+  canDropFromLeft = false,
 }) => {
   const { t } = useTranslation('qualiphotoPage');
 
@@ -141,7 +144,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
           description: ged.description ?? '',
           imageDataUrl,
           author: ged.author ?? null,
-          publishedDate: formatDisplayDate(ged.created_at),
+          publishedDate: getCreatedAtDisplay(ged),
         };
       }),
     );
@@ -230,7 +233,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   const isAnyPending = isAssigning;
 
   const renderRightContent = () => (
-    <Droppable droppableId={DROPPABLE_RIGHT}>
+    <Droppable droppableId={DROPPABLE_RIGHT} isDropDisabled={!canDropFromLeft}>
       {(provided, snapshot) => (
         <section
           ref={provided.innerRef}
@@ -257,7 +260,7 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
             rightImageItems.map((ged, index) => (
               <Draggable
                 key={ged.id}
-                draggableId={ged.id}
+                draggableId={`right-${ged.id}`}
                 index={index}
                 isDragDisabled={isAnyPending}
               >
@@ -298,12 +301,11 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
                       <QualiphotoCard
                         imageUrl={buildImageUrl(ged)}
                         title={ged.title || t('noTitle')}
-                        description={ged.description ?? ''}
                         author={ged.author}
                         chantier={ged.chantier ?? ged.categorie}
-                        createdAt={ged.created_at}
-                        layout="split"
+                        createdAt={getCreatedAtRaw(ged) ?? ''}
                         onClick={() => onSelectGed(ged)}
+                        ged={ged}
                         isVideo={isVideoUrl(ged.url)}
                         isAudio={isAudioUrl(ged.url)}
                       />

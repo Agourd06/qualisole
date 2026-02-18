@@ -5,12 +5,13 @@ import { QUALIPHOTO_KIND, IDSOURCE_MAIN, IDSOURCE_EMPTY_GUID } from '../../ged/c
 import type { GedItem } from '../../ged/types/ged.types';
 import {
   buildImageUrl,
+  getCreatedAtRaw,
   isMediaUrl,
   isVideoUrl,
   isAudioUrl,
 } from '../../ged/utils/qualiphotoHelpers';
 import { QualiphotoDetailModal } from '../../ged/components/QualiphotoDetailModal';
-import { POWERED_BY } from '../../../utils/constants';
+import { QualiphotoCard } from '../../ged/components/QualiphotoGallerySection';
 
 export const SequencePage: React.FC = () => {
   const [items, setItems] = useState<GedItem[]>([]);
@@ -145,71 +146,22 @@ export const SequencePage: React.FC = () => {
                   </svg>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    lastUserInteractionRef.current = Date.now();
-                    setSelectedGed(currentGed);
-                  }}
-                  className="group flex w-[66vw] max-w-4xl flex-col overflow-hidden rounded-2xl bg-white/80 shadow-[0_4px_14px_rgba(0,0,0,0.06)] transition hover:shadow-[0_10px_30px_rgba(0,0,0,0.10)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                >
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-neutral-100">
-                    <div
-                      className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded px-2 py-0.5 text-[0.6rem] font-medium tracking-wide text-white/90 shadow-lg"
-                      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-                      aria-hidden
-                    >
-                      Powered by {POWERED_BY}
-                    </div>
-                    {(() => {
-                      const url = buildImageUrl(currentGed);
-                      const isVideo = isVideoUrl(currentGed.url);
-                      const isAudio = isAudioUrl(currentGed.url);
-                      if (isAudio) {
-                        return (
-                          <div
-                            className="flex h-full w-full flex-col items-center justify-center gap-4 px-6"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 text-neutral-600">
-                              <span className="text-xs font-semibold tracking-wide">AUDIO</span>
-                            </div>
-                            <audio
-                              src={url}
-                              controls
-                              className="w-full max-w-md"
-                              aria-label={currentGed.title || 'Audio'}
-                            />
-                          </div>
-                        );
-                      }
-                      if (isVideo) {
-                        return (
-                          <video
-                            src={url}
-                            controls
-                            playsInline
-                            className="h-full w-full object-contain bg-black/80"
-                            aria-label={currentGed.title || 'Vidéo'}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        );
-                      }
-                      return (
-                        <img
-                          src={url}
-                          alt={currentGed.title}
-                          className="h-full w-full object-cover"
-                        />
-                      );
-                    })()}
-                  </div>
-                  <div className="px-3 py-2 text-left">
-                    <p className="truncate text-sm font-medium text-neutral-800">
-                      {currentGed.title || 'Sans titre'}
-                    </p>
-                  </div>
-                </button>
+                <div className="w-[66vw] max-w-4xl">
+                  <QualiphotoCard
+                    imageUrl={buildImageUrl(currentGed)}
+                    title={currentGed.title || 'Sans titre'}
+                    author={currentGed.author}
+                    chantier={currentGed.chantier ?? currentGed.categorie}
+                    createdAt={getCreatedAtRaw(currentGed) ?? ''}
+                    onClick={() => {
+                      lastUserInteractionRef.current = Date.now();
+                      setSelectedGed(currentGed);
+                    }}
+                    ged={currentGed}
+                    isVideo={isVideoUrl(currentGed.url)}
+                    isAudio={isAudioUrl(currentGed.url)}
+                  />
+                </div>
 
                 <button
                   type="button"

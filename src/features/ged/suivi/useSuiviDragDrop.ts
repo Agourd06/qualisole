@@ -47,7 +47,8 @@ export function useSuiviDragDrop({
       const slotDest = parseSlotDroppableId(destination.droppableId);
 
       if (isFromLeft && folderId) {
-        const ged = leftImageItems.find((g) => g.id === draggableId);
+        const rawId = String(draggableId).replace(/^left-/, '');
+        const ged = leftImageItems.find((g) => g.id === rawId);
         if (!ged) return;
         setSlotUpdateInProgress(true);
         try {

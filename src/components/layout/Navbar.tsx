@@ -15,7 +15,6 @@ const NAV_TABS = [
   { to: '/qualiphoto', labelKey: 'constat' as const },
   { to: '/suivi', labelKey: 'suivi' as const },
   { to: '/sequence', labelKey: 'sequence' as const },
-  { to: '/chantier', labelKey: 'chantier' as const },
   { to: '/map', labelKey: 'map' as const },
 ] as const;
 
@@ -79,9 +78,9 @@ export const Navbar: React.FC = () => {
           </button>
         </div>
 
-        {/* Center: Nav tabs - never wrap, stay on one line */}
+        {/* Center: Nav tabs - never wrap, stay on one line, centered */}
         <nav
-          className="flex shrink-0 flex-nowrap items-center gap-1 sm:gap-2"
+          className="flex shrink-0 flex-nowrap items-center justify-center gap-1 sm:gap-2"
           aria-label="Navigation principale"
         >
           {NAV_TABS.map(({ to, labelKey }) => (
@@ -91,7 +90,7 @@ export const Navbar: React.FC = () => {
               className={({ isActive }) =>
                 `${navLinkClass} ${isActive ? navLinkActive : navLinkInactive}`
               }
-              end={to === '/sequence' || to === '/chantier' || to === '/map'}
+              end={to === '/sequence' || to === '/map'}
             >
               {t(labelKey)}
             </NavLink>

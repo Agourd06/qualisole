@@ -139,7 +139,7 @@ export async function generateQualiphotoPdf(
       const imgX = margin + (contentWidth - fitW) / 2;
       const format = data.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
       doc.addImage(data.imageDataUrl, format, imgX, imgBlockY, fitW, fitH, undefined, 'FAST');
-      const watermarkText = `Powered by ${POWERED_BY}`;
+      const watermarkText = POWERED_BY;
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
       doc.setFillColor(50, 50, 50);
@@ -460,7 +460,7 @@ export async function generateFolderGedsTablePdf(
             undefined,
             'NONE'
           );
-          const watermarkText = `Powered by ${POWERED_BY}`;
+          const watermarkText = POWERED_BY;
           doc.setFontSize(5);
           doc.setFont('helvetica', 'normal');
           doc.setFillColor(50, 50, 50);

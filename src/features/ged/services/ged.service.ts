@@ -131,7 +131,7 @@ export function buildCreateGedFormData(input: CreateGedFormInput): FormData {
   fd.append('chantier', input.chantier);
   fd.append('title', input.title);
   fd.append('description', input.description);
-  fd.append('mode', 'capture');
+  fd.append('mode', 'upload');
   fd.append('file', input.imageFile);
   if (input.voiceFile) {
     fd.append('voice', input.voiceFile);

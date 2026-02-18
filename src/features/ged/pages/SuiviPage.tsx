@@ -89,7 +89,7 @@ export const SuiviPage: React.FC = () => {
     };
   }, [fetchAllGeds]);
 
-  /** Apply advanced filters: author, date range (inclusive), chantier (when selected). */
+  /** Left column: filter by date and author only (not chantier or dossier). */
   const filteredByFilters = useMemo(() => {
     return items.filter((ged) => {
       if (selectedAuthorId != null && selectedAuthorId !== '') {
@@ -99,13 +99,9 @@ export const SuiviPage: React.FC = () => {
       const gedDateOnly = toDateOnly(ged.created_at);
       if (dateDebut && gedDateOnly < dateDebut) return false;
       if (dateFin && gedDateOnly > dateFin) return false;
-      if (selectedChantier?.title != null && selectedChantier.title !== '') {
-        const gedChantier = ged.chantier ?? ged.categorie ?? '';
-        if (gedChantier !== selectedChantier.title) return false;
-      }
       return true;
     });
-  }, [items, selectedAuthorId, dateDebut, dateFin, selectedChantier?.title]);
+  }, [items, selectedAuthorId, dateDebut, dateFin]);
 
   const leftImageItems = useMemo(
     () =>

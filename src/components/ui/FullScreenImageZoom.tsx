@@ -101,7 +101,7 @@ export const FullScreenImageZoom: React.FC<FullScreenImageZoomProps> = ({
               style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
               aria-hidden
             >
-              Powered by {POWERED_BY}
+              {POWERED_BY}
             </div>
             {/* Floating overlay controls */}
             <div className="absolute inset-x-0 top-16 z-20 flex items-center justify-center gap-2 px-4">
