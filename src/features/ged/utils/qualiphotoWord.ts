@@ -188,7 +188,7 @@ export async function generateFolderGedsTableWord(
         new TableCell({
           children: [
             new Paragraph({ 
-              children: [new TextRun({ text: 'Remarks', bold: true })],
+              children: [new TextRun({ text: 'Observations', bold: true })],
               alignment: AlignmentType.CENTER,
             }),
           ],

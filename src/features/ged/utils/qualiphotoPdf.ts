@@ -357,11 +357,11 @@ export async function generateFolderGedsTablePdf(
     const constatTextW = doc.getTextWidth(constatText);
     const constatCenterX = margin + FOLDER_PDF.imageColWidthMm / 2;
     doc.text(constatText, constatCenterX - constatTextW / 2, startY + 5);
-    // Center "Remarks" in the text column
-    const remarksText = 'Remarks';
-    const remarksTextW = doc.getTextWidth(remarksText);
-    const remarksCenterX = margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + textColWidth / 2;
-    doc.text(remarksText, remarksCenterX - remarksTextW / 2, startY + 5);
+    // Center "Observations" in the text column
+    const observationsText = 'Observations';
+    const observationsTextW = doc.getTextWidth(observationsText);
+    const observationsCenterX = margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + textColWidth / 2;
+    doc.text(observationsText, observationsCenterX - observationsTextW / 2, startY + 5);
     doc.setDrawColor(...BLUE);
     doc.setLineWidth(0.35);
     doc.line(margin, startY + 7, pageWidth - margin, startY + 7);
