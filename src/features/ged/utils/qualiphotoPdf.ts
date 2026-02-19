@@ -352,8 +352,16 @@ export async function generateFolderGedsTablePdf(
     doc.setFontSize(FOLDER_PDF.headerFontSize);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...BLUE);
-    doc.text('Image', margin + FOLDER_PDF.cellPaddingMm, startY + 5);
-    doc.text('Title', margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + FOLDER_PDF.cellPaddingMm, startY + 5);
+    // Center "Constat" in the image column
+    const constatText = 'Constat';
+    const constatTextW = doc.getTextWidth(constatText);
+    const constatCenterX = margin + FOLDER_PDF.imageColWidthMm / 2;
+    doc.text(constatText, constatCenterX - constatTextW / 2, startY + 5);
+    // Center "Remarks" in the text column
+    const remarksText = 'Remarks';
+    const remarksTextW = doc.getTextWidth(remarksText);
+    const remarksCenterX = margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + textColWidth / 2;
+    doc.text(remarksText, remarksCenterX - remarksTextW / 2, startY + 5);
     doc.setDrawColor(...BLUE);
     doc.setLineWidth(0.35);
     doc.line(margin, startY + 7, pageWidth - margin, startY + 7);

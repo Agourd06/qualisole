@@ -170,7 +170,10 @@ export async function generateFolderGedsTableWord(
       children: [
         new TableCell({
           children: [
-            new Paragraph({ children: [new TextRun({ text: 'Image', bold: true })] }),
+            new Paragraph({ 
+              children: [new TextRun({ text: 'Constat', bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
           ],
           width: { size: DOCX_LAYOUT.imageColWidthPct, type: WidthType.PERCENTAGE },
           verticalAlign: VerticalAlign.TOP,
@@ -184,7 +187,10 @@ export async function generateFolderGedsTableWord(
         }),
         new TableCell({
           children: [
-            new Paragraph({ children: [new TextRun({ text: 'Title', bold: true })] }),
+            new Paragraph({ 
+              children: [new TextRun({ text: 'Remarks', bold: true })],
+              alignment: AlignmentType.CENTER,
+            }),
           ],
           width: { size: DOCX_LAYOUT.textColWidthPct, type: WidthType.PERCENTAGE },
           verticalAlign: VerticalAlign.TOP,
