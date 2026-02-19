@@ -3,7 +3,7 @@ import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTranslation } from 'react-i18next';
 import { QualiphotoCard } from './QualiphotoGallerySection';
 import { FolderEditModal } from './FolderEditModal';
-import { buildImageUrl, getCreatedAtRaw, getCreatedAtDisplay, isVideoUrl, isAudioUrl } from '../utils/qualiphotoHelpers';
+import { buildImageUrl, getCreatedAtRaw, getCreatedAtDisplay, isVideoUrl, isAudioUrl, getMediaType } from '../utils/qualiphotoHelpers';
 import { filterFolderImageGeds } from '../utils/folderGedFilter';
 import { generateFolderGedsTablePdf } from '../utils/qualiphotoPdf';
 import { generateFolderGedsTableWord } from '../utils/qualiphotoWord';
@@ -138,13 +138,15 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
     return Promise.all(
       selectedForPdf.map(async (ged) => {
         const url = buildImageUrl(ged);
-        const imageDataUrl = url ? await fetchImageAsDataUrl(url) : null;
+        const mediaType = getMediaType(ged.url);
+        const imageDataUrl = mediaType === 'image' && url ? await fetchImageAsDataUrl(url) : null;
         return {
           title: ged.title ?? '',
           description: ged.description ?? '',
           imageDataUrl,
           author: ged.author ?? null,
           publishedDate: getCreatedAtDisplay(ged),
+          isVideo: mediaType === 'video',
         };
       }),
     );

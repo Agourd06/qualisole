@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { DropResult } from '@hello-pangea/dnd';
-import { getGeds, setGedIdsource, moveGedToMain } from '../services/ged.service';
+import { getGeds, setGedIdsource, moveGedToMain, setGedChantier } from '../services/ged.service';
 
 /** Defer so @hello-pangea/dnd can finish cleanup before we refetch (avoids "Unable to find draggable" warning). */
 function scheduleAfterDndCleanup(fn: () => void | Promise<void>): void {
@@ -20,6 +20,7 @@ import {
 
 export interface UseSuiviDragDropArgs {
   folderId: string | null;
+  selectedChantier: { id: string; title?: string } | null;
   leftImageItems: GedItem[];
   paralleleItems: GedParalleleItem[];
   moveGedToFolder: (payload: GedMovePayload) => Promise<boolean>;
@@ -28,6 +29,7 @@ export interface UseSuiviDragDropArgs {
 
 export function useSuiviDragDrop({
   folderId,
+  selectedChantier,
   leftImageItems,
   paralleleItems,
   moveGedToFolder,
@@ -56,6 +58,15 @@ export function useSuiviDragDrop({
           if (folderZoneId) {
             idsource = folderZoneId;
             await setGedIdsource({ id: ged.id, kind: ged.kind, idsource });
+            // Also update chantier if selected
+            if (selectedChantier && selectedChantier.id && selectedChantier.title) {
+              await setGedChantier({
+                id: ged.id,
+                kind: ged.kind,
+                chantierId: selectedChantier.id,
+                chantier: selectedChantier.title,
+              });
+            }
           } else if (slotDest) {
             const row = paralleleItems.find((r) => r.id === slotDest.rowId);
             const isEmptyApresSlot =
@@ -63,11 +74,38 @@ export function useSuiviDragDrop({
             if (isEmptyApresSlot) {
               idsource = slotDest.rowId;
               await setGedIdsource({ id: ged.id, kind: ged.kind, idsource });
+              // Also update chantier if selected
+              if (selectedChantier && selectedChantier.id && selectedChantier.title) {
+                await setGedChantier({
+                  id: ged.id,
+                  kind: ged.kind,
+                  chantierId: selectedChantier.id,
+                  chantier: selectedChantier.title,
+                });
+              }
             } else {
               await moveGedToFolder(toMovePayload(ged));
+              // Also update chantier if selected (moveGedToFolder only updates idsource)
+              if (selectedChantier && selectedChantier.id && selectedChantier.title) {
+                await setGedChantier({
+                  id: ged.id,
+                  kind: ged.kind,
+                  chantierId: selectedChantier.id,
+                  chantier: selectedChantier.title,
+                });
+              }
             }
           } else {
             await moveGedToFolder(toMovePayload(ged));
+            // Also update chantier if selected (moveGedToFolder only updates idsource)
+            if (selectedChantier && selectedChantier.id && selectedChantier.title) {
+              await setGedChantier({
+                id: ged.id,
+                kind: ged.kind,
+                chantierId: selectedChantier.id,
+                chantier: selectedChantier.title,
+              });
+            }
           }
           // Defer refetch so @hello-pangea/dnd can finish cleanup before we update the list (avoids "Unable to find draggable" warning)
           scheduleAfterDndCleanup(onMoveSuccess);
@@ -153,6 +191,7 @@ export function useSuiviDragDrop({
     },
     [
       folderId,
+      selectedChantier,
       leftImageItems,
       paralleleItems,
       moveGedToFolder,

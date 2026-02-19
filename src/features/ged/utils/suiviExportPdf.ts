@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { generateFolderGedsTablePdf, type FolderGedRow } from './qualiphotoPdf';
 import { POWERED_BY } from '../../../utils/constants';
-import { htmlToSegments, hexToRgb, parseHtmlAlignment } from './htmlToSegments';
+import { renderHtmlToPdf } from './htmlToPdf';
 
 export type { FolderGedRow };
 
@@ -54,17 +54,17 @@ export async function generateSuiviApresPdf(
 }
 
 const BOTH_PDF = {
-  marginMm: 7,
+  marginMm: 8,
   titleFontSize: 18,
   titleSpacingBelowMm: 14,
   headerFontSize: 10,
   cellPaddingMm: 3,
-  imageMaxHeightMm: 40,
+  imageMaxHeightMm: 74,
   metaFontSize: 7,
   metaGapMm: 1,
-  titleFontSizeRow: 10,
+  titleFontSizeRow: 10.5,
   descFontSize: 9,
-  descLineHeight: 1.4,
+  descLineHeight: 1.5,
   rowGapMm: 4,
   separatorColor: [230, 230, 230] as [number, number, number],
 };
@@ -102,7 +102,7 @@ export async function generateSuiviBothPdf(
   const { width: pageWidth, height: pageHeight } = getPageSize(doc);
   const contentWidth = pageWidth - 2 * margin;
   const colWidth = (contentWidth - BOTH_PDF.cellPaddingMm * 2) / 2;
-  const imageColWidth = Math.min(colWidth * 0.55, 45);
+  const imageColWidth = Math.min(colWidth * 0.50, 68);
   const textColWidth = colWidth - imageColWidth - BOTH_PDF.cellPaddingMm;
   const maxY = pageHeight - margin - 15;
 
@@ -128,6 +128,55 @@ export async function generateSuiviBothPdf(
     }
     y += 6;
   }
+
+  /**
+   * Estimate the height of a row before rendering to make better pagination decisions.
+   * This ensures Avant and Après stay together on the same page.
+   */
+  const estimateRowHeight = (pair: SuiviPairRow): number => {
+    let maxHeight = 0;
+    
+    // Estimate height for each cell
+    [pair.avant, pair.apres].forEach((cell) => {
+      if (!cell) {
+        maxHeight = Math.max(maxHeight, 15); // Empty cell
+        return;
+      }
+      
+      let cellHeight = BOTH_PDF.cellPaddingMm * 2;
+      
+      // Image or video height
+      if (cell.imageDataUrl) {
+        cellHeight += Math.min(BOTH_PDF.imageMaxHeightMm, 74);
+      } else if (cell.isVideo) {
+        cellHeight += 12; // Video text height
+      }
+      
+      // Meta line
+      if (cell.publishedDate || cell.author) {
+        cellHeight += 6;
+      }
+      
+      // Title (usually 1-2 lines)
+      const titleText = (cell.title || '').trim().slice(0, 60);
+      const titleLines = doc.splitTextToSize(titleText, textColWidth).length;
+      cellHeight += Math.min(titleLines, 2) * 6;
+      
+      // Description - estimate based on text length
+      // Be more conservative to avoid over-estimation that causes premature page breaks
+      const descText = stripHtml(cell.description || '').trim().slice(0, 300);
+      if (descText) {
+        // Rough estimate: ~60 chars per line (wider estimate), each line ~3.5mm
+        // Cap at reasonable height to avoid over-estimation
+        const estimatedLines = Math.ceil(descText.length / 60);
+        cellHeight += Math.min(estimatedLines, 6) * 3.5; // More conservative estimate
+      }
+      
+      maxHeight = Math.max(maxHeight, cellHeight);
+    });
+    
+    return maxHeight + BOTH_PDF.rowGapMm + 3; // Add separator line space
+  };
 
   const drawPairRow = async (
     pair: SuiviPairRow,
@@ -161,32 +210,70 @@ export async function generateSuiviBothPdf(
             fitW = fitH / aspect;
           }
           const imgX = x + (imageColWidth - fitW) / 2;
+          const imgY = rowY + BOTH_PDF.cellPaddingMm;
           const fmt = cell.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
           doc.addImage(
             cell.imageDataUrl,
             fmt,
             imgX,
-            rowY + BOTH_PDF.cellPaddingMm,
+            imgY,
             fitW,
             fitH,
             undefined,
             'NONE',
           );
+          
+          // Add "Powered by" watermark at top center
           const watermarkText = POWERED_BY;
           doc.setFontSize(5);
           doc.setFont('helvetica', 'normal');
           doc.setFillColor(50, 50, 50);
           const ww = doc.getTextWidth(watermarkText) + 2;
-          doc.rect(imgX + (fitW - ww) / 2, rowY + BOTH_PDF.cellPaddingMm + 0.5, ww, 2.5, 'F');
+          doc.rect(imgX + (fitW - ww) / 2, imgY + 0.5, ww, 2.5, 'F');
           doc.setTextColor(255, 255, 255);
-          doc.text(watermarkText, imgX + fitW / 2, rowY + BOTH_PDF.cellPaddingMm + 2.2, { align: 'center' });
+          doc.text(watermarkText, imgX + fitW / 2, imgY + 2.2, { align: 'center' });
+          
+          // Set imageBottom after image
           imageBottom = rowY + BOTH_PDF.cellPaddingMm + fitH;
+          
+          // Add author and date separately BELOW the image (not overlaid)
+          if (cell.author || cell.publishedDate) {
+            let metaY = imageBottom + 2;
+            doc.setFontSize(4);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...BLACK);
+            
+            // Author on left, date on right (separate text, not overlay)
+            if (cell.author) {
+              doc.setFont('helvetica', 'bold');
+              doc.text(cell.author, imgX, metaY);
+            }
+            if (cell.publishedDate) {
+              doc.setFont('helvetica', 'normal');
+              const dateWidth = doc.getTextWidth(cell.publishedDate);
+              doc.text(cell.publishedDate, imgX + fitW - dateWidth, metaY);
+            }
+            
+            imageBottom = metaY + 3;
+          }
         } catch {
           doc.setFontSize(BOTH_PDF.descFontSize);
           doc.setTextColor(...GRAY);
           doc.text('—', x + BOTH_PDF.cellPaddingMm, rightY + 6);
           imageBottom = rightY + 12;
         }
+      } else if (cell.isVideo) {
+        // Show "Video" text for videos
+        doc.setFontSize(BOTH_PDF.descFontSize);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...BLUE);
+        const videoText = 'Video';
+        const videoTextW = doc.getTextWidth(videoText);
+        doc.text(videoText, x + (imageColWidth - videoTextW) / 2, rightY + 6);
+        imageBottom = rightY + 12;
+      } else {
+        // No image and not a video - ensure imageBottom is set so text can render properly
+        imageBottom = rightY;
       }
 
       doc.setFontSize(BOTH_PDF.metaFontSize);
@@ -207,69 +294,24 @@ export async function generateSuiviBothPdf(
 
       doc.setFontSize(BOTH_PDF.descFontSize);
       doc.setFont('helvetica', 'normal');
-      const descSegments = htmlToSegments(cell.description || '');
-      const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor);
-      const descAlign = parseHtmlAlignment(cell.description || '');
-      const cellCenterX = textX + textW / 2;
-      const cellRightX = textX + textW;
-      const lineHeightDesc = BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
-      if (descHasFormatting && descSegments.length > 0) {
-        for (const seg of descSegments) {
-          const lines = doc.splitTextToSize(seg.text.slice(0, 300), textW);
-          const segColor = seg.backgroundColor
-            ? BLACK
-            : seg.color
-              ? hexToRgb(seg.color)
-              : GRAY;
-          const segBg = seg.backgroundColor ? hexToRgb(seg.backgroundColor) : null;
-          for (const line of lines) {
-            if (segBg) {
-              doc.setFillColor(...segBg);
-              const lineW = doc.getTextWidth(line);
-              const rectH = lineHeightDesc - 0.2;
-              const rectX =
-                descAlign === 'center'
-                  ? cellCenterX - lineW / 2
-                  : descAlign === 'right'
-                    ? cellRightX - lineW
-                    : textX;
-              doc.rect(rectX, rightY, lineW, rectH, 'F');
-            }
-            doc.setTextColor(...segColor);
-            const textOpts =
-              descAlign === 'center'
-                ? ({ align: 'center' } as const)
-                : descAlign === 'right'
-                  ? ({ align: 'right' } as const)
-                  : undefined;
-            doc.text(
-              line,
-              descAlign === 'center' ? cellCenterX : descAlign === 'right' ? cellRightX : textX,
-              rightY + 4,
-              textOpts,
-            );
-            rightY += lineHeightDesc;
+      // Use HTML rendering for descriptions - preserves all formatting perfectly
+      // Use maxY from page level to prevent page breaks within cells (keeps Avant/Après together)
+      const cellDescription = (cell.description || '').trim().slice(0, 300);
+      if (cellDescription) {
+        const descY = await renderHtmlToPdf(
+          doc,
+          cellDescription,
+          textX,
+          rightY,
+          textW,
+          maxY, // Use page-level maxY to prevent internal page breaks
+          {
+            fontSize: BOTH_PDF.descFontSize,
+            lineHeight: BOTH_PDF.descLineHeight,
+            color: '#6B7280', // GRAY
           }
-        }
-      } else {
-        const descText = stripHtml(cell.description || '').trim().slice(0, 300);
-        const descLines = doc.splitTextToSize(descText, textW);
-        doc.setTextColor(...GRAY);
-        for (let i = 0; i < Math.min(descLines.length, 4); i++) {
-          const textOpts =
-            descAlign === 'center'
-              ? ({ align: 'center' } as const)
-              : descAlign === 'right'
-                ? ({ align: 'right' } as const)
-                : undefined;
-          doc.text(
-            descLines[i],
-            descAlign === 'center' ? cellCenterX : descAlign === 'right' ? cellRightX : textX,
-            rightY + 4,
-            textOpts,
-          );
-          rightY += BOTH_PDF.descFontSize * 0.35 * BOTH_PDF.descLineHeight;
-        }
+        );
+        rightY = descY;
       }
       return Math.max(imageBottom, rightY) + BOTH_PDF.cellPaddingMm;
     };
@@ -301,21 +343,52 @@ export async function generateSuiviBothPdf(
     y += 14;
   } else {
     for (let i = 0; i < pairedRows.length; i++) {
-      if (y > maxY - 55) {
+      // Estimate row height before rendering to make smarter pagination decisions
+      const estimatedHeight = estimateRowHeight(pairedRows[i]);
+      
+      // Only add new page if we don't have enough space for the estimated row height
+      // Use a more conservative buffer to ensure Avant and Après stay together
+      // Only break if we really don't have space (use 30mm buffer for safety)
+      if (y + estimatedHeight > maxY - 30) {
         doc.addPage();
         y = margin;
+        
+        // Redraw styled header on new page
+        const headerH = 7;
+        const leftHeaderX = margin;
+        const rightHeaderX = margin + colWidth + BOTH_PDF.cellPaddingMm * 2;
+        doc.setFillColor(232, 232, 232);
+        doc.rect(leftHeaderX, y, colWidth, headerH, 'F');
+        doc.rect(rightHeaderX, y, colWidth, headerH, 'F');
+        doc.setDrawColor(...BLUE);
+        doc.setLineWidth(0.2);
+        doc.rect(leftHeaderX, y, colWidth, headerH);
+        doc.rect(rightHeaderX, y, colWidth, headerH);
+        doc.setFontSize(BOTH_PDF.headerFontSize + 0.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...BLUE);
+        doc.text('Avant', leftHeaderX + BOTH_PDF.cellPaddingMm, y + 4.6);
+        doc.text('Après', rightHeaderX + BOTH_PDF.cellPaddingMm, y + 4.6);
+        y += headerH + 3;
       }
 
       if (i === 0) {
-        doc.setFontSize(BOTH_PDF.headerFontSize);
+        const headerH = 7;
+        const leftHeaderX = margin;
+        const rightHeaderX = margin + colWidth + BOTH_PDF.cellPaddingMm * 2;
+        doc.setFillColor(232, 232, 232);
+        doc.rect(leftHeaderX, y, colWidth, headerH, 'F');
+        doc.rect(rightHeaderX, y, colWidth, headerH, 'F');
+        doc.setDrawColor(...BLUE);
+        doc.setLineWidth(0.2);
+        doc.rect(leftHeaderX, y, colWidth, headerH);
+        doc.rect(rightHeaderX, y, colWidth, headerH);
+        doc.setFontSize(BOTH_PDF.headerFontSize + 0.5);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...BLUE);
-        doc.text('Avant', margin + BOTH_PDF.cellPaddingMm, y + 4);
-        doc.text('Après', margin + colWidth + BOTH_PDF.cellPaddingMm * 2 + BOTH_PDF.cellPaddingMm, y + 4);
-        doc.setDrawColor(...BLUE);
-        doc.setLineWidth(0.35);
-        doc.line(margin, y + 6, pageWidth - margin, y + 6);
-        y += 10;
+        doc.text('Avant', leftHeaderX + BOTH_PDF.cellPaddingMm, y + 4.6);
+        doc.text('Après', rightHeaderX + BOTH_PDF.cellPaddingMm, y + 4.6);
+        y += headerH + 3;
       }
 
       const rowY = y;

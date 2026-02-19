@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { htmlToSegments, hexToRgb, parseHtmlAlignment } from './htmlToSegments';
+import { renderHtmlToPdf } from './htmlToPdf';
 import { POWERED_BY } from '../../../utils/constants';
 
 /** Blue accent (report style, like IMAGE DATA REPORT). Customize via theme. */
@@ -10,8 +10,8 @@ const GRAY = [107, 114, 128] as [number, number, number];
 const PDF_CONFIG = {
   page: {
     format: 'a4' as const,
-    marginMm: 20,
-    marginTopMm: 22,
+    marginMm: 8,
+    marginTopMm: 14,
   },
   header: {
     titleFontSize: 18,
@@ -21,8 +21,8 @@ const PDF_CONFIG = {
   },
   /** Centered image block */
   imageCol: {
-    maxWidthMm: 120,
-    maxHeightMm: 100,
+    maxWidthMm: 210,
+    maxHeightMm: 165,
   },
   /** Right column: data list */
   dataCol: {
@@ -57,6 +57,8 @@ export interface QualiphotoPdfData {
   description: string;
   /** Data URL or null to skip image. */
   imageDataUrl: string | null;
+  /** True if this is a video (imageDataUrl will be null for videos). */
+  isVideo?: boolean;
 }
 
 function loadImageDimensions(dataUrl: string): Promise<{ w: number; h: number }> {
@@ -124,7 +126,7 @@ export async function generateQualiphotoPdf(
   doc.line(margin, y, pageWidth - margin, y);
   y += PDF_CONFIG.header.separatorHeightMm + PDF_CONFIG.header.marginBottomMm;
 
-  // —— Centered image ——
+  // —— Centered image or video indicator ——
   const imgBlockY = y;
   if (data.imageDataUrl) {
     try {
@@ -139,6 +141,8 @@ export async function generateQualiphotoPdf(
       const imgX = margin + (contentWidth - fitW) / 2;
       const format = data.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
       doc.addImage(data.imageDataUrl, format, imgX, imgBlockY, fitW, fitH, undefined, 'FAST');
+      
+      // Add "Powered by" watermark at top center
       const watermarkText = POWERED_BY;
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
@@ -147,6 +151,31 @@ export async function generateQualiphotoPdf(
       doc.rect(imgX + (fitW - ww) / 2, imgBlockY + 1, ww, 4, 'F');
       doc.setTextColor(255, 255, 255);
       doc.text(watermarkText, imgX + fitW / 2, imgBlockY + 3.8, { align: 'center' });
+      
+      // Add date and author overlay at bottom of image - author left, date right
+      // Styled same as "Powered by" watermark
+      if (data.author || data.publishedDate) {
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        const overlayPadding = 2;
+        const overlayHeight = 4;
+        const overlayY = imgBlockY + fitH - overlayHeight - overlayPadding;
+        
+        // Draw background same style as "Powered by" - dark background
+        doc.setFillColor(50, 50, 50);
+        doc.rect(imgX + overlayPadding, overlayY, fitW - overlayPadding * 2, overlayHeight, 'F');
+        
+        // Draw text - author on left, date on right (no labels, just values)
+        doc.setTextColor(255, 255, 255);
+        if (data.author) {
+          doc.text(data.author, imgX + overlayPadding + 1, overlayY + 2.5);
+        }
+        if (data.publishedDate) {
+          const dateWidth = doc.getTextWidth(data.publishedDate);
+          doc.text(data.publishedDate, imgX + fitW - overlayPadding - dateWidth - 1, overlayY + 2.5);
+        }
+      }
+      
       y = imgBlockY + fitH;
     } catch {
       doc.setFontSize(10);
@@ -154,6 +183,15 @@ export async function generateQualiphotoPdf(
       doc.text('No image', margin + contentWidth / 2 - doc.getTextWidth('No image') / 2, imgBlockY + 15);
       y = imgBlockY + 25;
     }
+  } else if (data.isVideo) {
+    // Show "Video" text for videos
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...BLUE);
+    const videoText = 'Video';
+    const videoTextW = doc.getTextWidth(videoText);
+    doc.text(videoText, margin + (contentWidth - videoTextW) / 2, imgBlockY + 15);
+    y = imgBlockY + 25;
   } else {
     doc.setFontSize(10);
     doc.setTextColor(...GRAY);
@@ -161,16 +199,8 @@ export async function generateQualiphotoPdf(
     y = imgBlockY + 25;
   }
 
-  // —— Author and date under image (centered) ——
-  y += 4;
-  doc.setFontSize(PDF_CONFIG.dataCol.valueFontSize);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...GRAY);
-  const metaParts = [data.author, `Image date: ${data.publishedDate}`].filter(Boolean);
-  const metaLine = metaParts.length ? metaParts.join('  ·  ') : `Image date: ${data.publishedDate}`;
-  const metaW = doc.getTextWidth(metaLine);
-  doc.text(metaLine, margin + (contentWidth - metaW) / 2, y + 4);
-  y += 12;
+  // Metadata is already rendered inside the image overlay; keep compact spacing.
+  y += 8;
 
   // —— Description section (full width, with HTML color support) ——
   const descriptionHtml = data.description?.trim() ?? '';
@@ -182,79 +212,21 @@ export async function generateQualiphotoPdf(
     doc.text('Description', margin, y + 5);
     y += 5 + PDF_CONFIG.dataCol.gapMm;
 
-    doc.setFontSize(PDF_CONFIG.description.fontSize);
-    doc.setFont('helvetica', 'normal');
-    const lineHeightMm =
-      PDF_CONFIG.description.fontSize * 0.35 * PDF_CONFIG.description.lineHeight;
-
-    const descAlign = parseHtmlAlignment(descriptionHtml);
-    const centerX = margin + contentWidth / 2;
-    const rightX = margin + contentWidth;
-
-    const segments = htmlToSegments(descriptionHtml);
-    const hasFormatting = segments.some((s) => s.color || s.backgroundColor);
-    if (hasFormatting && segments.length > 0) {
-      for (const seg of segments) {
-        const lines = doc.splitTextToSize(seg.text, contentWidth);
-        const segColor = seg.backgroundColor
-          ? BLACK
-          : seg.color
-            ? hexToRgb(seg.color)
-            : PDF_CONFIG.description.color;
-        const segBg = seg.backgroundColor ? hexToRgb(seg.backgroundColor) : null;
-        for (const line of lines) {
-          if (y + lineHeightMm > maxY) {
-            doc.addPage();
-            y = margin;
-          }
-          const textY = y + PDF_CONFIG.description.fontSize * 0.35;
-          if (segBg) {
-            doc.setFillColor(...segBg);
-            const lineW = doc.getTextWidth(line);
-            const rectH = lineHeightMm - 0.5;
-            const rectX =
-              descAlign === 'center'
-                ? centerX - lineW / 2
-                : descAlign === 'right'
-                  ? rightX - lineW
-                  : margin;
-            doc.rect(rectX, y, lineW, rectH, 'F');
-          }
-          doc.setTextColor(...segColor);
-          const textOpts =
-            descAlign === 'center'
-              ? ({ align: 'center' } as const)
-              : descAlign === 'right'
-                ? ({ align: 'right' } as const)
-                : undefined;
-          doc.text(line, descAlign === 'center' ? centerX : descAlign === 'right' ? rightX : margin, textY, textOpts);
-          y += lineHeightMm;
-        }
+    // Use HTML rendering - preserves all formatting (bold, colors, lists, alignment, fonts)
+    // HTML is the source of truth - no manual parsing needed
+    y = await renderHtmlToPdf(
+      doc,
+      descriptionHtml,
+      margin,
+      y,
+      contentWidth,
+      maxY,
+      {
+        fontSize: PDF_CONFIG.description.fontSize,
+        lineHeight: PDF_CONFIG.description.lineHeight,
+        color: `#${PDF_CONFIG.description.color.map(c => c.toString(16).padStart(2, '0')).join('')}`,
       }
-    } else {
-      const plainText = stripHtml(descriptionHtml);
-      const descLines = doc.splitTextToSize(plainText, contentWidth);
-      doc.setTextColor(...PDF_CONFIG.description.color);
-      for (let i = 0; i < descLines.length; i++) {
-        if (y + lineHeightMm > maxY) {
-          doc.addPage();
-          y = margin;
-        }
-        const textOpts =
-          descAlign === 'center'
-            ? ({ align: 'center' } as const)
-            : descAlign === 'right'
-              ? ({ align: 'right' } as const)
-              : undefined;
-        doc.text(
-          descLines[i],
-          descAlign === 'center' ? centerX : descAlign === 'right' ? rightX : margin,
-          y + PDF_CONFIG.description.fontSize * 0.35,
-          textOpts,
-        );
-        y += lineHeightMm;
-      }
-    }
+    );
   }
 
   // —— Report Date as signature (after description) ——
@@ -284,6 +256,8 @@ export interface FolderGedRow {
   author?: string | null;
   /** Display under the image (small type), e.g. "03/02/2026". */
   publishedDate?: string;
+  /** True if this is a video (imageDataUrl will be null for videos). */
+  isVideo?: boolean;
 }
 
 export interface GenerateFolderPdfOptions {
@@ -300,15 +274,15 @@ const FOLDER_PDF = {
   introLineHeight: 1.5,
   introSpacingBelowMm: 12,
   introColor: GRAY,
-  imageColWidthMm: 52,
-  imageMaxHeightMm: 48,
+  imageColWidthMm: 68,
+  imageMaxHeightMm: 74,
   metaUnderImageFontSize: 7,
   metaUnderImageGapMm: 1,
   colGapMm: 4,
   headerFontSize: 10,
   rowTitleFontSize: 11,
-  rowDescFontSize: 9,
-  rowDescLineHeight: 1.45,
+  rowDescFontSize: 9.5,
+  rowDescLineHeight: 1.5,
   /** Slightly darker than GRAY for more weight. */
   rowDescColor: [55, 55, 58] as [number, number, number],
   cellPaddingMm: 3,
@@ -404,15 +378,10 @@ export async function generateFolderGedsTablePdf(
         FOLDER_PDF.imageMaxHeightMm,
         FOLDER_PDF.imageMaxHeightMm
       );
-      const metaH =
-        (row.publishedDate || row.author
-          ? FOLDER_PDF.metaUnderImageFontSize * 0.35 + FOLDER_PDF.metaUnderImageGapMm
-          : 0) + FOLDER_PDF.cellPaddingMm;
-      const descSegments = htmlToSegments(row.description || '');
-      const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor);
-      const descLineCount = descHasFormatting && descSegments.length > 0
-        ? descSegments.reduce((sum, s) => sum + doc.splitTextToSize(s.text, textColWidth).length, 0)
-        : doc.splitTextToSize(stripHtml(row.description || '').trim().slice(0, 800), textColWidth).length;
+      const metaH = FOLDER_PDF.cellPaddingMm;
+      // Estimate line count for height calculation (HTML rendering will handle actual formatting)
+      const descText = stripHtml(row.description || '').trim().slice(0, 800);
+      const descLineCount = doc.splitTextToSize(descText, textColWidth).length;
       const descH =
         Math.min(descLineCount, 8) * lineHeightDesc +
         FOLDER_PDF.rowTitleFontSize * 0.35 +
@@ -436,8 +405,7 @@ export async function generateFolderGedsTablePdf(
       const imgColX = margin + FOLDER_PDF.cellPaddingMm;
       const textColX = margin + FOLDER_PDF.imageColWidthMm + FOLDER_PDF.colGapMm + FOLDER_PDF.cellPaddingMm;
 
-      // —— Left column: image then date & author under it ——
-      let imageBottomY = rowY + FOLDER_PDF.cellPaddingMm;
+      // —— Left column: image or video placeholder ——
       if (row.imageDataUrl) {
         try {
           const { w: imgW, h: imgH } = await loadImageDimensions(row.imageDataUrl);
@@ -449,47 +417,66 @@ export async function generateFolderGedsTablePdf(
             fitW = fitH / aspect;
           }
           const imgX = margin + (FOLDER_PDF.imageColWidthMm - fitW) / 2;
+          const imgY = rowY + FOLDER_PDF.cellPaddingMm;
           const format = row.imageDataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
           doc.addImage(
             row.imageDataUrl,
             format,
             imgX,
-            rowY + FOLDER_PDF.cellPaddingMm,
+            imgY,
             fitW,
             fitH,
             undefined,
             'NONE'
           );
+          
+          // Add "Powered by" watermark at top center
           const watermarkText = POWERED_BY;
           doc.setFontSize(5);
           doc.setFont('helvetica', 'normal');
           doc.setFillColor(50, 50, 50);
           const ww = doc.getTextWidth(watermarkText) + 2;
-          doc.rect(imgX + (fitW - ww) / 2, rowY + FOLDER_PDF.cellPaddingMm + 0.5, ww, 2.5, 'F');
+          doc.rect(imgX + (fitW - ww) / 2, imgY + 0.5, ww, 2.5, 'F');
           doc.setTextColor(255, 255, 255);
-          doc.text(watermarkText, imgX + fitW / 2, rowY + FOLDER_PDF.cellPaddingMm + 2.2, { align: 'center' });
-          imageBottomY = rowY + FOLDER_PDF.cellPaddingMm + fitH;
+          doc.text(watermarkText, imgX + fitW / 2, imgY + 2.2, { align: 'center' });
+          
+          // Add date and author overlay at bottom of image - author left, date right
+          // Styled same as "Powered by" watermark
+          if (row.author || row.publishedDate) {
+            doc.setFontSize(4.5);
+            doc.setFont('helvetica', 'normal');
+            const overlayPadding = 1.5;
+            const overlayHeight = 3.5;
+            const overlayY = imgY + fitH - overlayHeight - overlayPadding;
+            
+            // Draw background same style as "Powered by" - dark background
+            doc.setFillColor(50, 50, 50);
+            doc.rect(imgX + overlayPadding, overlayY, fitW - overlayPadding * 2, overlayHeight, 'F');
+            
+            // Draw text - author on left, date on right (no labels, just values)
+            doc.setTextColor(255, 255, 255);
+            if (row.author) {
+              doc.text(row.author, imgX + overlayPadding + 0.5, overlayY + 2);
+            }
+            if (row.publishedDate) {
+              const dateWidth = doc.getTextWidth(row.publishedDate);
+              doc.text(row.publishedDate, imgX + fitW - overlayPadding - dateWidth - 0.5, overlayY + 2);
+            }
+          }
+          
         } catch {
           doc.setFontSize(FOLDER_PDF.rowDescFontSize);
           doc.setTextColor(...GRAY);
           doc.text('—', imgColX, rowY + FOLDER_PDF.cellPaddingMm + 8);
-          imageBottomY = rowY + FOLDER_PDF.cellPaddingMm + 12;
         }
-      }
-
-      doc.setFontSize(FOLDER_PDF.metaUnderImageFontSize);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRAY);
-      if (row.publishedDate || row.author) {
-        imageBottomY += FOLDER_PDF.metaUnderImageGapMm;
-        const metaY = imageBottomY + FOLDER_PDF.metaUnderImageFontSize * 0.35;
-        const imgColRight = margin + FOLDER_PDF.imageColWidthMm - FOLDER_PDF.cellPaddingMm;
-        if (row.publishedDate) {
-          doc.text(row.publishedDate, imgColX, metaY);
-        }
-        if (row.author) {
-          doc.text(row.author, imgColRight, metaY, { align: 'right' });
-        }
+      } else if (row.isVideo) {
+        // Show "Video" text for videos
+        doc.setFontSize(FOLDER_PDF.rowDescFontSize);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...BLUE);
+        const videoText = 'Video';
+        const videoTextW = doc.getTextWidth(videoText);
+        doc.text(videoText, imgColX + (FOLDER_PDF.imageColWidthMm - FOLDER_PDF.cellPaddingMm * 2 - videoTextW) / 2, rowY + FOLDER_PDF.cellPaddingMm + 8);
       }
 
       // —— Right column: title (bold) + description (no label) ——
@@ -502,68 +489,23 @@ export async function generateFolderGedsTablePdf(
       doc.text(titleLines[0] ?? '—', textColX, textY + FOLDER_PDF.rowTitleFontSize * 0.35);
       textY += FOLDER_PDF.rowTitleFontSize * 0.35 + 2;
 
-      doc.setFontSize(FOLDER_PDF.rowDescFontSize);
-      doc.setFont('helvetica', 'normal');
-      const descAlign = parseHtmlAlignment(row.description || '');
-      const cellCenterX = textColX + textColWidth / 2;
-      const cellRightX = textColX + textColWidth;
-      if (descHasFormatting && descSegments.length > 0) {
-        for (const seg of descSegments) {
-          const lines = doc.splitTextToSize(seg.text, textColWidth);
-          const segColor = seg.backgroundColor
-            ? BLACK
-            : seg.color
-              ? hexToRgb(seg.color)
-              : FOLDER_PDF.rowDescColor;
-          const segBg = seg.backgroundColor ? hexToRgb(seg.backgroundColor) : null;
-          for (const line of lines) {
-            if (segBg) {
-              doc.setFillColor(...segBg);
-              const lineW = doc.getTextWidth(line);
-              const rectH = lineHeightDesc - 0.3;
-              const rectX =
-                descAlign === 'center'
-                  ? cellCenterX - lineW / 2
-                  : descAlign === 'right'
-                    ? cellRightX - lineW
-                    : textColX;
-              doc.rect(rectX, textY, lineW, rectH, 'F');
-            }
-            doc.setTextColor(...segColor);
-            const textOpts =
-              descAlign === 'center'
-                ? ({ align: 'center' } as const)
-                : descAlign === 'right'
-                  ? ({ align: 'right' } as const)
-                  : undefined;
-            doc.text(
-              line,
-              descAlign === 'center' ? cellCenterX : descAlign === 'right' ? cellRightX : textColX,
-              textY + FOLDER_PDF.rowDescFontSize * 0.35,
-              textOpts,
-            );
-            textY += lineHeightDesc;
+      // Use HTML rendering for descriptions - preserves all formatting perfectly
+      const rowDescription = (row.description || '').trim().slice(0, 800);
+      if (rowDescription) {
+        const descY = await renderHtmlToPdf(
+          doc,
+          rowDescription,
+          textColX,
+          textY,
+          textColWidth,
+          rowY + rowHeight, // Max height constraint
+          {
+            fontSize: FOLDER_PDF.rowDescFontSize,
+            lineHeight: FOLDER_PDF.rowDescLineHeight,
+            color: `#${FOLDER_PDF.rowDescColor.map(c => c.toString(16).padStart(2, '0')).join('')}`,
           }
-        }
-      } else {
-        const plainDesc = stripHtml(row.description || '').trim().slice(0, 800);
-        const plainLines = doc.splitTextToSize(plainDesc, textColWidth);
-        doc.setTextColor(...FOLDER_PDF.rowDescColor);
-        for (let l = 0; l < Math.min(plainLines.length, 10); l++) {
-          const textOpts =
-            descAlign === 'center'
-              ? ({ align: 'center' } as const)
-              : descAlign === 'right'
-                ? ({ align: 'right' } as const)
-                : undefined;
-          doc.text(
-            plainLines[l],
-            descAlign === 'center' ? cellCenterX : descAlign === 'right' ? cellRightX : textColX,
-            textY + FOLDER_PDF.rowDescFontSize * 0.35,
-            textOpts,
-          );
-          textY += lineHeightDesc;
-        }
+        );
+        textY = descY;
       }
 
       // Horizontal separator only (no vertical borders)
@@ -606,5 +548,6 @@ export async function generateFolderGedsTablePdf(
     }
   }
 
-  doc.save(filename || `folder-${Date.now()}.pdf`);
+  const name = filename || `folder-${Date.now()}.pdf`;
+  doc.save(name);
 }

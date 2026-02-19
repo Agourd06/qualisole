@@ -6,6 +6,7 @@ import type { GedParalleleItem } from '../types/gedParallele.types';
 export interface SuiviExportToolbarProps {
   paralleleItems: GedParalleleItem[];
   folderTitle: string;
+  folderId?: string | null;
   folderIntroduction?: string | null;
   folderConclusion?: string | null;
   disabled?: boolean;
@@ -83,6 +84,7 @@ function ExportButtonGroup({
 export const SuiviExportToolbar: React.FC<SuiviExportToolbarProps> = ({
   paralleleItems,
   folderTitle,
+  folderId,
   folderIntroduction,
   folderConclusion,
   disabled = false,
@@ -104,7 +106,7 @@ export const SuiviExportToolbar: React.FC<SuiviExportToolbarProps> = ({
     exportWordAvant,
     exportWordBoth,
     exportWordApres,
-  } = useSuiviExport({ paralleleItems, folderTitle, folderIntroduction, folderConclusion });
+  } = useSuiviExport({ paralleleItems, folderTitle, folderId, folderIntroduction, folderConclusion });
 
   return (
     <div

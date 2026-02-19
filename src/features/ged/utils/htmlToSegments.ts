@@ -9,6 +9,12 @@ export interface HtmlSegment {
   color?: string;
   /** Hex color for background/highlight, e.g. 'ffff00' */
   backgroundColor?: string;
+  /** Whether text should be bold */
+  bold?: boolean;
+  /** List type: 'ordered' | 'unordered' | null */
+  listType?: 'ordered' | 'unordered' | null;
+  /** List item number (for ordered lists) */
+  listNumber?: number;
 }
 
 /** Parse rgb(r, g, b) or #hex to hex string without #. */
@@ -42,8 +48,9 @@ function parseStyle(style: string): { color?: string; backgroundColor?: string }
 
 function walk(
   node: Node,
-  inherit: { color?: string; backgroundColor?: string },
+  inherit: { color?: string; backgroundColor?: string; bold?: boolean; listType?: 'ordered' | 'unordered' | null; listNumber?: number; isFirstInListItem?: boolean },
   segments: HtmlSegment[],
+  listCounter: { ordered: number; unordered: number } = { ordered: 0, unordered: 0 },
 ): void {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent || '';
@@ -52,21 +59,52 @@ function walk(
         text,
         color: inherit.color,
         backgroundColor: inherit.backgroundColor,
+        bold: inherit.bold,
+        listType: inherit.listType,
+        listNumber: inherit.listNumber,
       });
     }
     return;
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return;
   const el = node as HTMLElement;
+  const tagName = el.tagName?.toLowerCase() || '';
   let current = { ...inherit };
+  
+  // Handle bold
+  if (tagName === 'b' || tagName === 'strong') {
+    current.bold = true;
+  }
+  
+  // Handle lists
+  if (tagName === 'ol') {
+    current.listType = 'ordered';
+    listCounter.ordered = 0;
+  } else if (tagName === 'ul') {
+    current.listType = 'unordered';
+    listCounter.unordered = 0;
+  } else if (tagName === 'li') {
+    // Set list number for this item and mark first child as first
+    if (current.listType === 'ordered') {
+      listCounter.ordered++;
+      current.listNumber = listCounter.ordered;
+    } else if (current.listType === 'unordered') {
+      listCounter.unordered++;
+      current.listNumber = listCounter.unordered;
+    }
+    current.isFirstInListItem = true;
+  }
+  
   const styleAttr = el.getAttribute?.('style');
   if (styleAttr) {
     const parsed = parseStyle(styleAttr);
     if (parsed.color) current.color = parsed.color;
     if (parsed.backgroundColor) current.backgroundColor = parsed.backgroundColor;
   }
+  
   for (let i = 0; i < el.childNodes.length; i++) {
-    walk(el.childNodes[i], current, segments);
+    const childCurrent = i === 0 && current.isFirstInListItem ? current : { ...current, isFirstInListItem: false };
+    walk(el.childNodes[i], childCurrent, segments, listCounter);
   }
 }
 
@@ -81,7 +119,7 @@ export function htmlToSegments(html: string): HtmlSegment[] {
   const div = document.createElement('div');
   div.innerHTML = html;
   const segments: HtmlSegment[] = [];
-  walk(div, {}, segments);
+  walk(div, {}, segments, { ordered: 0, unordered: 0 });
   return segments;
 }
 

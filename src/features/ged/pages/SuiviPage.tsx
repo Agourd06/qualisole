@@ -178,6 +178,7 @@ export const SuiviPage: React.FC = () => {
 
   const { onDragEnd, slotUpdateInProgress } = useSuiviDragDrop({
     folderId,
+    selectedChantier,
     leftImageItems,
     paralleleItems,
     moveGedToFolder,

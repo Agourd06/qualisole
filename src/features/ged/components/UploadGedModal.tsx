@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Modal } from '../../../components/ui/Modal';
 import { useUploadGed } from '../hooks/useUploadGed';
 import { IDSOURCE_EMPTY_GUID } from '../constants';
+import { ImageUploadInput, type ImageFileWithPreview } from './ImageUploadInput';
 
-const ACCEPT_IMAGE = 'image/*';
 const ACCEPT_VOICE = 'audio/*,.m4a';
 
 export interface UploadGedModalProps {
@@ -38,7 +38,7 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [chantier, setChantier] = useState(defaultChantier);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [mediaFiles, setMediaFiles] = useState<ImageFileWithPreview[]>([]);
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -50,7 +50,7 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
     if (!open) {
       setTitle('');
       setDescription('');
-      setImageFile(null);
+      setMediaFiles([]);
       setVoiceFile(null);
       setSubmitError(null);
       clearError();
@@ -70,24 +70,34 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
     async (e: React.FormEvent) => {
       e.preventDefault();
       setSubmitError(null);
-      if (!imageFile) {
+      if (mediaFiles.length === 0) {
         setSubmitError(t('uploadGedImageRequired'));
         return;
       }
-      const created = await uploadGed({
-        idsource,
-        chantier: chantier.trim() || defaultChantier,
-        title: title.trim(),
-        description: description.trim(),
-        imageFile,
-        voiceFile: voiceFile ?? null,
-      });
-      if (created) {
+      
+      // Upload all selected media (images/videos): one GED per file with shared metadata.
+      const uploadPromises = mediaFiles.map((mediaFile, index) =>
+        uploadGed({
+          idsource,
+          chantier: chantier.trim() || defaultChantier,
+          title: title.trim() || (mediaFiles.length > 1 ? `${t('uploadGedDefaultTitle')} (${index + 1})` : t('uploadGedDefaultTitle')),
+          description: description.trim(),
+          imageFile: mediaFile.file,
+          voiceFile: index === 0 ? (voiceFile ?? null) : null, // Only attach voice to first file
+        })
+      );
+      
+      const results = await Promise.all(uploadPromises);
+      const successCount = results.filter((r) => r !== null).length;
+      
+      if (successCount > 0) {
         await onSuccess?.();
         onClose();
+      } else {
+        setSubmitError(t('uploadGedUploadFailed'));
       }
     },
-    [idsource, chantier, defaultChantier, title, description, imageFile, voiceFile, uploadGed, onSuccess, onClose, t],
+    [idsource, chantier, defaultChantier, title, description, mediaFiles, voiceFile, uploadGed, onSuccess, onClose, t],
   );
 
   const handleClose = useCallback(() => {
@@ -158,19 +168,14 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
               className="w-full rounded-lg border-2 border-neutral-200 px-3 py-2 text-neutral-800 placeholder:text-neutral-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700" htmlFor="upload-ged-image">
-              {t('uploadGedImageLabel')}
-            </label>
-            <input
-              id="upload-ged-image"
-              type="file"
-              accept={ACCEPT_IMAGE}
-              required
-              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-              className="w-full text-sm text-neutral-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-primary file:font-medium"
-            />
-          </div>
+          <ImageUploadInput
+            images={mediaFiles}
+            onImagesChange={setMediaFiles}
+            multiple={true}
+            allowFolder={true}
+            error={submitError && mediaFiles.length === 0 ? submitError : null}
+            disabled={uploading || geoLoading}
+          />
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700" htmlFor="upload-ged-voice">
               {t('uploadGedVoiceLabel')}
@@ -186,10 +191,14 @@ export const UploadGedModal: React.FC<UploadGedModalProps> = ({
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button
               type="submit"
-              disabled={uploading || geoLoading || !imageFile}
+              disabled={uploading || geoLoading || mediaFiles.length === 0}
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-white transition hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-60"
             >
-              {uploading ? t('uploadGedSubmitting') : t('uploadGedSubmit')}
+              {uploading
+                ? t('uploadGedSubmitting', { count: mediaFiles.length })
+                : mediaFiles.length > 1
+                  ? t('uploadGedSubmitMultiple', { count: mediaFiles.length })
+                  : t('uploadGedSubmit')}
             </button>
             <button
               type="button"

@@ -11,12 +11,16 @@ import {
   BorderStyle,
   WidthType,
   ShadingType,
+  TableLayoutType,
+  VerticalAlign,
 } from 'docx';
 import type { FolderGedRow } from './qualiphotoPdf';
-import { POWERED_BY } from '../../../utils/constants';
 import type { SuiviPairRow } from './suiviExportPdf';
 import { dataUrlToUint8Array } from './gedExportUtils';
 import { htmlToSegments, DEFAULT_DESC_COLOR, parseHtmlAlignment } from './htmlToSegments';
+import { addTextOverlayToImage } from './imageOverlay';
+import { generateFolderGedsTableWord } from './qualiphotoWord';
+import { POWERED_BY } from '../../../utils/constants';
 
 export interface SuiviExportWordOptions {
   introduction?: string | null;
@@ -28,10 +32,40 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-const IMAGE_WIDTH = 180;
-const IMAGE_HEIGHT = 135;
+const DOCX_LAYOUT = {
+  imageMaxWidth: 600, // Increased for better image fit
+  imageMaxHeight: 420, // Increased for better image fit
+  nestedImageColWidthPct: 50,
+  nestedTextColWidthPct: 50,
+  outerColWidthPct: 50,
+  cellMarginTwip: 50, // Further reduced to maximize table space
+  nestedCellMarginTwip: 30, // Smaller margin for nested cells since they're inside outer cells
+};
 
-import { generateFolderGedsTableWord } from './qualiphotoWord';
+async function getDocxImageSize(
+  dataUrl: string,
+  maxWidth: number,
+  maxHeight: number,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = img.naturalWidth > 0 ? img.naturalHeight / img.naturalWidth : 1;
+      let width = maxWidth;
+      let height = width * ratio;
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height / Math.max(ratio, 0.001);
+      }
+      resolve({
+        width: Math.max(100, Math.round(width)),
+        height: Math.max(75, Math.round(height)),
+      });
+    };
+    img.onerror = () => reject(new Error('Failed to load image dimensions'));
+    img.src = dataUrl;
+  });
+}
 
 /**
  * Generate Word for Suivi "Avant only" – reuses folder table.
@@ -58,54 +92,152 @@ export async function generateSuiviApresWord(
 }
 
 /** Build one cell as table: image left | date+author, title, description right. */
-function cellTableForRow(row: FolderGedRow | null): Table {
+async function cellTableForRow(row: FolderGedRow | null): Promise<Table> {
   const imageParagraphs: Paragraph[] = [];
   const textParagraphs: Paragraph[] = [];
   if (!row) {
     textParagraphs.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
   } else {
     if (row.imageDataUrl) {
-      imageParagraphs.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: POWERED_BY, size: 9, color: '6B7280' })],
-          spacing: { after: 30 },
-        }),
-      );
       try {
-        const { data, type } = dataUrlToUint8Array(row.imageDataUrl);
+        const imageSize = await getDocxImageSize(
+          row.imageDataUrl,
+          DOCX_LAYOUT.imageMaxWidth,
+          DOCX_LAYOUT.imageMaxHeight,
+        );
+        // Add only "Powered by" overlay on the image, not author/date
+        const imageWithOverlay = await addTextOverlayToImage(row.imageDataUrl, {
+          poweredBy: POWERED_BY,
+          position: 'top',
+          outputWidth: imageSize.width,
+          outputHeight: imageSize.height,
+        });
+        
+        const { data, type } = dataUrlToUint8Array(imageWithOverlay);
         imageParagraphs.push(
           new Paragraph({
+            alignment: AlignmentType.CENTER,
             children: [
               new ImageRun({
                 type,
                 data,
-                transformation: { width: IMAGE_WIDTH, height: IMAGE_HEIGHT },
+                transformation: imageSize,
               }),
-            ],
-            spacing: { after: 60 },
-          }),
-        );
-      } catch {
-        imageParagraphs.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
+              ],
+              spacing: { after: 20 },
+            }),
+          );
+          
+          // Add author and date separately BELOW the image (not overlaid)
+          if (row.author || row.publishedDate) {
+            const metaRuns: TextRun[] = [];
+            if (row.author) {
+              metaRuns.push(new TextRun({ text: row.author, bold: true, size: 16 }));
+            }
+            if (row.publishedDate) {
+              if (metaRuns.length > 0) {
+                metaRuns.push(new TextRun({ text: ' • ', size: 16 }));
+              }
+              metaRuns.push(new TextRun({ text: row.publishedDate, size: 16 }));
+            }
+            if (metaRuns.length > 0) {
+              imageParagraphs.push(
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: metaRuns,
+                  spacing: { after: 20 },
+                }),
+              );
+            }
+          }
+      } catch (error) {
+        console.warn('Failed to add overlay to image:', error);
+        // Fallback: use original image without overlay
+        try {
+          const { data, type } = dataUrlToUint8Array(row.imageDataUrl);
+          const imageSize = await getDocxImageSize(
+            row.imageDataUrl,
+            DOCX_LAYOUT.imageMaxWidth,
+            DOCX_LAYOUT.imageMaxHeight,
+          );
+          imageParagraphs.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new ImageRun({
+                  type,
+                  data,
+                  transformation: imageSize,
+                }),
+              ],
+              spacing: { after: 20 },
+            }),
+          );
+          
+          // Add author and date separately BELOW the image (fallback)
+          if (row.author || row.publishedDate) {
+            const metaRuns: TextRun[] = [];
+            if (row.author) {
+              metaRuns.push(new TextRun({ text: row.author, bold: true, size: 16 }));
+            }
+            if (row.publishedDate) {
+              if (metaRuns.length > 0) {
+                metaRuns.push(new TextRun({ text: ' • ', size: 16 }));
+              }
+              metaRuns.push(new TextRun({ text: row.publishedDate, size: 16 }));
+            }
+            if (metaRuns.length > 0) {
+              imageParagraphs.push(
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: metaRuns,
+                  spacing: { after: 20 },
+                }),
+              );
+            }
+          }
+        } catch {
+          imageParagraphs.push(new Paragraph({ children: [new TextRun({ text: '—', italics: true })] }));
+        }
       }
+    } else if (row.isVideo) {
+      // Create a video placeholder with border and background to simulate image space
+      imageParagraphs.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: 'Video',
+              bold: true,
+              size: 22,
+              color: '00529B', // Blue color matching PDF
+            }),
+          ],
+          border: {
+            top: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC' },
+            bottom: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC' },
+            left: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC' },
+            right: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC' },
+          },
+          shading: {
+            fill: 'F5F5F5',
+            type: ShadingType.SOLID,
+          },
+          spacing: {
+            before: 120,
+            after: 20,
+          },
+        }),
+      );
     }
-    const metaParts = [row.publishedDate, row.author].filter(Boolean);
-    const metaLine = metaParts.length ? metaParts.join('  ') : '—';
-    textParagraphs.push(
-      new Paragraph({
-        children: [new TextRun({ text: metaLine, size: 14, color: '6B7280' })],
-        spacing: { after: 40 },
-      }),
-    );
     textParagraphs.push(
       new Paragraph({
         children: [new TextRun({ text: (row.title || '—').trim(), bold: true, size: 20 })],
-        spacing: { after: 60 },
+        spacing: { after: 30 },
       }),
     );
     const descSegments = htmlToSegments(row.description || '');
-    const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor);
+    const descHasFormatting = descSegments.some((s) => s.color || s.backgroundColor || s.bold || s.listType);
     const alignKey = parseHtmlAlignment(row.description || '');
     const alignMap: Record<string, (typeof AlignmentType)[keyof typeof AlignmentType]> = {
       left: AlignmentType.LEFT,
@@ -113,21 +245,38 @@ function cellTableForRow(row: FolderGedRow | null): Table {
       right: AlignmentType.RIGHT,
     };
     const HIGHLIGHT_TEXT_COLOR = '000000';
+    
     const descRuns =
       descHasFormatting && descSegments.length > 0
         ? descSegments
-            .map((seg) => {
-              const t = seg.text.trim();
-              if (!t) return null;
+            .map((seg, idx) => {
+              const prevSeg = idx > 0 ? descSegments[idx - 1] : null;
+              
+              // Check if this is the start of a new list item
+              const isNewListItem = seg.listType && seg.listNumber != null && 
+                (!prevSeg || !prevSeg.listType || prevSeg.listNumber !== seg.listNumber || prevSeg.listType !== seg.listType);
+              
+              // Handle list prefix only for first segment of a new list item
+              let textToRender = seg.text.trim();
+              if (isNewListItem) {
+                if (seg.listType === 'ordered' && seg.listNumber != null) {
+                  textToRender = `${seg.listNumber}. ${textToRender}`;
+                } else if (seg.listType === 'unordered' && seg.listNumber != null) {
+                  textToRender = `• ${textToRender}`;
+                }
+              }
+              
+              if (!textToRender) return null;
               const shading = seg.backgroundColor
                 ? { fill: seg.backgroundColor, type: ShadingType.SOLID }
                 : undefined;
               const textColor =
                 seg.backgroundColor && !seg.color ? HIGHLIGHT_TEXT_COLOR : seg.color || DEFAULT_DESC_COLOR;
               return new TextRun({
-                text: t.slice(0, 800),
+                text: textToRender.slice(0, 800),
                 size: 18,
                 color: textColor,
+                bold: seg.bold,
                 shading,
               });
             })
@@ -142,15 +291,31 @@ function cellTableForRow(row: FolderGedRow | null): Table {
   }
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [40, 60],
+    layout: TableLayoutType.FIXED,
     rows: [
       new TableRow({
         children: [
           new TableCell({
             children: imageParagraphs.length ? imageParagraphs : [new Paragraph({ children: [new TextRun({ text: '—', italics: true })] })],
+            width: { size: DOCX_LAYOUT.nestedImageColWidthPct, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.TOP,
+            margins: {
+              top: DOCX_LAYOUT.nestedCellMarginTwip,
+              bottom: DOCX_LAYOUT.nestedCellMarginTwip,
+              left: DOCX_LAYOUT.nestedCellMarginTwip,
+              right: DOCX_LAYOUT.nestedCellMarginTwip,
+            },
           }),
           new TableCell({
             children: textParagraphs,
+            width: { size: DOCX_LAYOUT.nestedTextColWidthPct, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.TOP,
+            margins: {
+              top: DOCX_LAYOUT.nestedCellMarginTwip,
+              bottom: DOCX_LAYOUT.nestedCellMarginTwip,
+              left: DOCX_LAYOUT.nestedCellMarginTwip,
+              right: DOCX_LAYOUT.nestedCellMarginTwip,
+            },
           }),
         ],
       }),
@@ -175,7 +340,7 @@ export async function generateSuiviBothWord(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: safeTitle, bold: true, size: 36 })],
-      spacing: { after: 320 },
+      spacing: { after: 200 },
     }),
   );
 
@@ -184,7 +349,7 @@ export async function generateSuiviBothWord(
     children.push(
       new Paragraph({
         children: [new TextRun({ text: stripHtml(introduction), size: 20, color: '404040' })],
-        spacing: { after: 240 },
+        spacing: { after: 160 },
       }),
     );
   }
@@ -195,14 +360,34 @@ export async function generateSuiviBothWord(
       children: [
         new TableCell({
           children: [
-            new Paragraph({ children: [new TextRun({ text: 'Avant', bold: true })] }),
+            new Paragraph({
+              children: [new TextRun({ text: 'Avant', bold: true, color: '00529B', size: 24 })],
+            }),
           ],
+          width: { size: DOCX_LAYOUT.outerColWidthPct, type: WidthType.PERCENTAGE },
+          verticalAlign: VerticalAlign.TOP,
+          margins: {
+            top: DOCX_LAYOUT.cellMarginTwip,
+            bottom: DOCX_LAYOUT.cellMarginTwip,
+            left: DOCX_LAYOUT.cellMarginTwip,
+            right: DOCX_LAYOUT.cellMarginTwip,
+          },
           shading: { fill: 'E8E8E8' },
         }),
         new TableCell({
           children: [
-            new Paragraph({ children: [new TextRun({ text: 'Après', bold: true })] }),
+            new Paragraph({
+              children: [new TextRun({ text: 'Après', bold: true, color: '00529B', size: 24 })],
+            }),
           ],
+          width: { size: DOCX_LAYOUT.outerColWidthPct, type: WidthType.PERCENTAGE },
+          verticalAlign: VerticalAlign.TOP,
+          margins: {
+            top: DOCX_LAYOUT.cellMarginTwip,
+            bottom: DOCX_LAYOUT.cellMarginTwip,
+            left: DOCX_LAYOUT.cellMarginTwip,
+            right: DOCX_LAYOUT.cellMarginTwip,
+          },
           shading: { fill: 'E8E8E8' },
         }),
       ],
@@ -210,17 +395,35 @@ export async function generateSuiviBothWord(
   ];
 
   for (const pair of pairedRows) {
+    const avantTable = await cellTableForRow(pair.avant);
+    const apresTable = await cellTableForRow(pair.apres);
     tableRows.push(
       new TableRow({
         children: [
           new TableCell({
-            children: [cellTableForRow(pair.avant)],
+            children: [avantTable],
+            width: { size: DOCX_LAYOUT.outerColWidthPct, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.TOP,
+            margins: {
+              top: DOCX_LAYOUT.cellMarginTwip,
+              bottom: DOCX_LAYOUT.cellMarginTwip,
+              left: DOCX_LAYOUT.cellMarginTwip,
+              right: DOCX_LAYOUT.cellMarginTwip,
+            },
             borders: {
               bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E5E5' },
             },
           }),
           new TableCell({
-            children: [cellTableForRow(pair.apres)],
+            children: [apresTable],
+            width: { size: DOCX_LAYOUT.outerColWidthPct, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.TOP,
+            margins: {
+              top: DOCX_LAYOUT.cellMarginTwip,
+              bottom: DOCX_LAYOUT.cellMarginTwip,
+              left: DOCX_LAYOUT.cellMarginTwip,
+              right: DOCX_LAYOUT.cellMarginTwip,
+            },
             borders: {
               bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E5E5' },
             },
@@ -233,6 +436,7 @@ export async function generateSuiviBothWord(
   children.push(
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
       rows: tableRows,
       borders: {
         top: { style: BorderStyle.SINGLE, size: 12, color: '00529B' },
@@ -244,7 +448,7 @@ export async function generateSuiviBothWord(
   const conclusion = options?.conclusion?.trim() ?? '';
   if (conclusion) {
     children.push(
-      new Paragraph({ spacing: { before: 400 } }),
+      new Paragraph({ spacing: { before: 240 } }),
       new Paragraph({
         children: [new TextRun({ text: stripHtml(conclusion), size: 20, color: '6B7280' })],
       }),
@@ -252,7 +456,24 @@ export async function generateSuiviBothWord(
   }
 
   const doc = new Document({
-    sections: [{ properties: {}, children }],
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: {
+              top: 720,    // 0.5 inch (reduced from default 1 inch = 1440)
+              right: 720,  // 0.5 inch
+              bottom: 720,  // 0.5 inch
+              left: 720,   // 0.5 inch
+              header: 720, // 0.5 inch
+              footer: 720, // 0.5 inch
+              gutter: 0,   // 0
+            },
+          },
+        },
+        children,
+      },
+    ],
   });
 
   const blob = await Packer.toBlob(doc);

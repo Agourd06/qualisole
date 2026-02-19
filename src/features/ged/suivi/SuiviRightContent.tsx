@@ -56,6 +56,7 @@ export const SuiviRightContent: React.FC<SuiviRightContentProps> = ({
         <SuiviExportToolbar
           paralleleItems={paralleleItems}
           folderTitle={selectedFolder?.title ?? ''}
+          folderId={selectedFolder?.id ?? null}
           folderIntroduction={selectedFolder?.description ?? undefined}
           folderConclusion={selectedFolder?.conclusion ?? undefined}
           disabled={isAnyPending}

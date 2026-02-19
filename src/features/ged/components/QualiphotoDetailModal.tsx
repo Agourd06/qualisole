@@ -153,6 +153,7 @@ export const QualiphotoDetailModal: React.FC<QualiphotoDetailModalProps> = ({
           publishedDate: photoDate,
           description: descriptionValue || '',
           imageDataUrl,
+          isVideo: mediaType === 'video',
         },
         `qualiphoto-${ged.id}.pdf`
       );
