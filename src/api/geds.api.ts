@@ -123,6 +123,27 @@ export const updateGedChantier = async (
   return data;
 };
 
+export interface UpdateGedAssignedParams {
+  id: string;
+  kind: string;
+  assigned: string | null;
+}
+
+/**
+ * PUT /geds/:id?kind=... – update GED assigned field (assign GED to a user).
+ * Body: assigned (user id or null to unassign).
+ */
+export const updateGedAssigned = async (
+  params: UpdateGedAssignedParams,
+): Promise<unknown> => {
+  const { data } = await axiosClient.put<unknown>(
+    `${BASE_URL}/${params.id}`,
+    { assigned: params.assigned },
+    { params: { kind: params.kind } },
+  );
+  return data;
+};
+
 export interface CreateGedParams {
   kind: string;
   /** Folder id or empty GUID for unassigned. */

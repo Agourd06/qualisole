@@ -152,6 +152,23 @@ export async function generateFolderGedsTableWord(
     }),
   );
 
+  // Add a horizontal line separator if title starts with "Assigned to:"
+  if (safeTitle.startsWith('Assigned to:')) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: '─'.repeat(50),
+            color: '808080',
+            size: 20,
+          }),
+        ],
+        spacing: { after: 240 },
+      }),
+    );
+  }
+
   const introduction = options?.introduction?.trim() ?? '';
   if (introduction) {
     children.push(

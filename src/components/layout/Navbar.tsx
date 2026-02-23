@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../LanguageSwitcher';
@@ -6,7 +6,7 @@ import { NavbarDateDropdown } from './NavbarDateDropdown';
 import { NavbarChantierDropdown } from './NavbarChantierDropdown';
 import { NavbarDossierDropdown } from './NavbarDossierDropdown';
 import { NavbarAuthorDropdown } from './NavbarAuthorDropdown';
-import { UploadGedModal } from '../../features/ged/components/UploadGedModal';
+import { NavbarAssignedToDropdown } from './NavbarAssignedToDropdown';
 import { useNavbarFilters } from '../../context/NavbarFiltersContext';
 import { clearAuth, getStoredAuth } from '../../utils/authStorage';
 import { LogoutIcon } from '../icons/LogoutIcon';
@@ -14,6 +14,7 @@ import { LogoutIcon } from '../icons/LogoutIcon';
 const NAV_TABS = [
   { to: '/qualiphoto', labelKey: 'constat' as const },
   { to: '/suivi', labelKey: 'suivi' as const },
+  { to: '/assignment', labelKey: 'assignment' as const },
   { to: '/sequence', labelKey: 'sequence' as const },
   { to: '/control', labelKey: 'control' as const },
   { to: '/map', labelKey: 'map' as const },
@@ -23,17 +24,11 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation('nav');
   const { user } = getStoredAuth();
-  const { selectedFolder, selectedChantier, triggerRefresh } = useNavbarFilters();
-  const [addConstatModalOpen, setAddConstatModalOpen] = useState(false);
+  const { triggerRefresh } = useNavbarFilters();
 
   const handleLogout = () => {
     clearAuth();
     navigate('/login', { replace: true });
-  };
-
-  const handleAddConstatSuccess = () => {
-    triggerRefresh();
-    setAddConstatModalOpen(false);
   };
 
   const navLinkClass =
@@ -68,15 +63,9 @@ export const Navbar: React.FC = () => {
           </div>
           <NavbarDateDropdown />
           <NavbarAuthorDropdown />
+          <NavbarAssignedToDropdown />
           <NavbarChantierDropdown />
           <NavbarDossierDropdown />
-          <button
-            type="button"
-            onClick={() => setAddConstatModalOpen(true)}
-            className="whitespace-nowrap rounded-full bg-primary px-3 py-1.5 text-[0.8rem] font-semibold text-white shadow-sm transition hover:bg-primary/90 sm:px-4 sm:py-2 sm:text-[0.85rem]"
-          >
-            {t('addConstat')}
-          </button>
         </div>
 
         {/* Center: Nav tabs - never wrap, stay on one line, centered */}
@@ -119,14 +108,6 @@ export const Navbar: React.FC = () => {
           </button>
         </div>
       </div>
-
-      <UploadGedModal
-        open={addConstatModalOpen}
-        onClose={() => setAddConstatModalOpen(false)}
-        onSuccess={handleAddConstatSuccess}
-        selectedFolderId={selectedFolder?.id ?? null}
-        defaultChantier={selectedChantier?.title ?? ''}
-      />
     </header>
   );
 };

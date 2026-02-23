@@ -75,7 +75,7 @@ export const NavbarDossierDropdown: React.FC = () => {
   }, [folderList, debouncedSearch]);
 
   const displayTrigger = selectedFolder
-    ? `${selectedFolder.code} — ${selectedFolder.title}`
+    ? selectedFolder.title || selectedFolder.code || t('dossier')
     : t('dossier');
 
   useEffect(() => {

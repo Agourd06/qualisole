@@ -5,6 +5,7 @@ import {
   updateGed as updateGedApi,
   updateGedIdsource as updateGedIdsourceApi,
   updateGedChantier as updateGedChantierApi,
+  updateGedAssigned as updateGedAssignedApi,
 } from '../../../api/geds.api';
 import type {
   GedByIdResponse,
@@ -82,6 +83,18 @@ export async function setGedChantier(params: {
   chantier: string;
 }): Promise<unknown> {
   return updateGedChantierApi(params);
+}
+
+/**
+ * Assigns a GED to a user: sets assigned field on the GED.
+ * PUT /geds/:id?kind=... with body { assigned }.
+ */
+export async function setGedAssigned(params: {
+  id: string;
+  kind: string;
+  assigned: string | null;
+}): Promise<unknown> {
+  return updateGedAssignedApi(params);
 }
 
 export interface CreateGedFormInput {

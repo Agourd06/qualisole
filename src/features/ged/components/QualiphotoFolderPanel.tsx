@@ -21,7 +21,7 @@ export interface FolderInfo {
 
 export interface QualiphotoFolderPanelProps {
   selectedFolder: FolderInfo | null;
-  /** Chantier (project) name for display in header. */
+  /** Chantier (project) name for display in header. (Not used - header moved to parent) */
   chantierTitle?: string | null;
   /** Folder items in display order (already ordered by saved order). */
   orderedFolderItems: GedItem[];
@@ -31,7 +31,7 @@ export interface QualiphotoFolderPanelProps {
   clearMoveError: () => void;
   isAssigning: boolean;
   onSelectGed: (ged: GedItem) => void;
-  /** Refetch folder GEDs only (right panel). */
+  /** Refetch folder GEDs only (right panel). (Not used - refresh moved to parent) */
   onRefetchFolder?: () => void | Promise<void>;
   /** When true, drop zone accepts drag from left. Must be true only when "Without folder" filter is selected. */
   canDropFromLeft?: boolean;
@@ -43,7 +43,7 @@ export interface QualiphotoFolderPanelProps {
  */
 export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   selectedFolder,
-  chantierTitle,
+  chantierTitle: _unusedChantierTitle,
   orderedFolderItems,
   folderLoading,
   folderError,
@@ -51,9 +51,11 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
   clearMoveError,
   isAssigning,
   onSelectGed,
-  onRefetchFolder,
+  onRefetchFolder: _unusedOnRefetchFolder,
   canDropFromLeft = false,
 }) => {
+  // Header bar with chantier/folder info and refresh button moved to parent (QualiphotoPage)
+  // These props kept for interface compatibility but not used here
   const { t } = useTranslation('qualiphotoPage');
 
   const [folderMetaTitle, setFolderMetaTitle] = useState<string | null>(
@@ -366,35 +368,6 @@ export const QualiphotoFolderPanel: React.FC<QualiphotoFolderPanelProps> = ({
             </p>
           ) : null}
         </div>
-        {(chantierTitle || selectedFolder?.title) && (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2 text-center">
-              <p className="text-sm font-semibold text-primary truncate">
-                {chantierTitle && <span>{chantierTitle}</span>}
-                {chantierTitle && selectedFolder?.title && (
-                  <span className="mx-2 text-primary/70">·</span>
-                )}
-                {selectedFolder?.title && (
-                  <span className="text-primary/90">{folderMetaTitle ?? selectedFolder.title}</span>
-                )}
-              </p>
-            </div>
-            {onRefetchFolder && (
-              <button
-                type="button"
-                onClick={() => onRefetchFolder()}
-                disabled={folderLoading}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary disabled:opacity-50"
-                aria-label={t('refreshFolderGeds')}
-                title={t('refreshFolderGeds')}
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"

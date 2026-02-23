@@ -12,6 +12,7 @@ import { applyOrderToItems, filterFolderImageGeds } from '../utils/folderGedFilt
 import { QualiphotoCard } from '../components/QualiphotoGallerySection';
 import { QualiphotoDetailModal } from '../components/QualiphotoDetailModal';
 import { QualiphotoFolderPanel } from '../components/QualiphotoFolderPanel';
+import { UploadGedModal } from '../components/UploadGedModal';
 import { useQualiphotoByFolder } from '../hooks/useQualiphotoByFolder';
 import { useFolderImageOrder } from '../hooks/useFolderImageOrder';
 import { useMoveGedToFolder } from '../hooks/useMoveGedToFolder';
@@ -66,7 +67,7 @@ function toMovePayload(ged: GedItem): GedMovePayload {
 }
 
 export const QualiphotoPage: React.FC = () => {
-  const { t } = useTranslation(['qualiphotoPage', 'chantierPage']);
+  const { t } = useTranslation(['qualiphotoPage', 'chantierPage', 'nav']);
   const {
     selectedFolder,
     selectedChantier,
@@ -74,6 +75,7 @@ export const QualiphotoPage: React.FC = () => {
     dateDebut,
     dateFin,
     refreshTrigger,
+    triggerRefresh,
   } = useNavbarFilters();
 
   const [leftItems, setLeftItems] = useState<GedItem[]>([]);
@@ -87,6 +89,7 @@ export const QualiphotoPage: React.FC = () => {
   const [chantierRightLoading, setChantierRightLoading] = useState(false);
   const [chantierRightError, setChantierRightError] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
+  const [addConstatModalOpen, setAddConstatModalOpen] = useState(false);
   /** Bump after move+refetch so DragDropContext remounts and avoids stale draggable refs. */
   const [dndKey, setDndKey] = useState(0);
 
@@ -130,11 +133,14 @@ export const QualiphotoPage: React.FC = () => {
   }, []);
 
   const refetchLeft = useCallback(async () => {
+    setLeftLoading(true);
     try {
       const list = await fetchUnassignedGeds();
       setLeftItems(list);
     } catch {
       // keep current on refetch error
+    } finally {
+      setLeftLoading(false);
     }
   }, [fetchUnassignedGeds]);
 
@@ -259,10 +265,7 @@ export const QualiphotoPage: React.FC = () => {
   const leftImageItems = useMemo(
     () =>
       leftFilteredByFilters.filter(
-        (item) =>
-          item.url &&
-          isImageOrVideoUrl(item.url) &&
-          isUnassignedIdsource(item.idsource),
+        (item) => item.url && isImageOrVideoUrl(item.url),
       ),
     [leftFilteredByFilters],
   );
@@ -551,6 +554,11 @@ export const QualiphotoPage: React.FC = () => {
       </nav>
     ) : null;
 
+  const handleAddConstatSuccess = useCallback(() => {
+    triggerRefresh();
+    setAddConstatModalOpen(false);
+  }, [triggerRefresh]);
+
   return (
     <div className="min-h-screen w-[90%] mx-auto bg-gradient-to-br from-neutral-50 via-white to-neutral-100/50">
       <Navbar />
@@ -610,7 +618,71 @@ export const QualiphotoPage: React.FC = () => {
           />
 
           {/* Right: folder panel (when dossier selected) or chantier panel (when chantier only) */}
-          {selectedFolder ? (
+          <div className="flex shrink-0 flex-col pr-8 sm:pr-12 lg:pr-16" style={{ width: '47vw' }}>
+            {/* Always visible header bar with chantier/folder info */}
+            <div className="mb-4 flex items-center gap-2">
+              <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2.5 text-center">
+                {selectedFolder ? (
+                  <p className="text-sm font-semibold text-primary truncate">
+                    {selectedChantier?.title && (
+                      <>
+                        <span>{selectedChantier.title}</span>
+                        <span className="mx-2 text-primary/70">·</span>
+                      </>
+                    )}
+                    <span>{selectedFolder.title}</span>
+                    <span className="ml-2 text-primary/80">
+                      · {orderedFolderItems.filter((g) => g.url && isImageOrVideoUrl(g.url)).length} {t('chantierPage:gedCount', 'GED(s)')}
+                    </span>
+                  </p>
+                ) : selectedChantier && !isNoChantierSelected(selectedChantier) ? (
+                  <p className="text-sm font-semibold text-primary truncate">
+                    {selectedChantier.title}
+                    <span className="ml-2 text-primary/80">
+                      · {chantierRightItems.length} {t('chantierPage:gedCount', 'GED(s)')}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-neutral-500">
+                    {t('selectChantierOrFolder', 'Select a chantier or folder to see GEDs')}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  // Always refresh left side GEDs
+                  await refetchLeft();
+                  if (selectedFolder) {
+                    await refetchFolderList();
+                  } else if (selectedChantier && !isNoChantierSelected(selectedChantier)) {
+                    await refetchChantierRight();
+                  } else {
+                    triggerRefresh();
+                  }
+                }}
+                disabled={folderLoading || chantierRightLoading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary disabled:opacity-50"
+                aria-label={t('refreshFolderGeds')}
+                title={t('refreshFolderGeds')}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddConstatModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                {t('nav:addConstat', 'Add constat')}
+              </button>
+            </div>
+
+            {selectedFolder ? (
             <QualiphotoFolderPanel
               selectedFolder={selectedFolder}
               chantierTitle={selectedChantier?.title ?? null}
@@ -624,34 +696,8 @@ export const QualiphotoPage: React.FC = () => {
               onRefetchFolder={refetchFolderList}
               canDropFromLeft={canDragToRight}
             />
-          ) : selectedChantier && !isNoChantierSelected(selectedChantier) ? (
-            <aside
-              className="flex shrink-0 flex-col pr-8 sm:pr-12 lg:pr-16"
-              style={{ width: '47vw' }}
-              aria-label={t('galleryAria')}
-            >
-              <div className="mb-4 flex items-center gap-2">
-                <div className="min-w-0 flex-1 rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 border border-primary/20 px-4 py-2.5 text-center">
-                  <p className="text-sm font-semibold text-primary truncate">
-                    {selectedChantier.title}
-                    <span className="ml-2 text-primary/80">
-                      · {chantierRightItems.length} {t('chantierPage:gedCount', 'GED(s)')}
-                    </span>
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => refetchChantierRight()}
-                  disabled={chantierRightLoading}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 shadow-sm transition hover:border-primary hover:text-primary disabled:opacity-50"
-                  aria-label={t('refreshFolderGeds')}
-                  title={t('refreshFolderGeds')}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
+            ) : selectedChantier && !isNoChantierSelected(selectedChantier) ? (
+              <div className="flex shrink-0 flex-col" aria-label={t('galleryAria')}>
               {assignError && (
                 <div className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                   {assignError === 'ASSIGN_ERROR' ? t('chantierPage:assignError', 'Failed to assign.') : assignError}
@@ -716,17 +762,15 @@ export const QualiphotoPage: React.FC = () => {
                   )}
                 </Droppable>
               )}
-            </aside>
-          ) : (
-            <aside
-              className="flex shrink-0 flex-col items-center justify-center pr-8 sm:pr-12 lg:pr-16"
-              style={{ width: '47vw', minHeight: 200 }}
-            >
-              <div className="rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 p-8 text-center text-sm text-neutral-500">
-                <p>{t('selectFolderToSeeGeds')}</p>
               </div>
-            </aside>
-          )}
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center min-h-[200px]">
+                <div className="rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/80 p-8 text-center text-sm text-neutral-500">
+                  <p>{t('selectFolderToSeeGeds')}</p>
+                </div>
+              </div>
+            )}
+          </div>
           </div>
           {isAssigning && (
             <div
@@ -768,6 +812,14 @@ export const QualiphotoPage: React.FC = () => {
         imageUrl={selectedGed ? buildImageUrl(selectedGed) : ''}
         onClose={() => setSelectedGed(null)}
         onSaved={handleSaved}
+      />
+
+      <UploadGedModal
+        open={addConstatModalOpen}
+        onClose={() => setAddConstatModalOpen(false)}
+        onSuccess={handleAddConstatSuccess}
+        selectedFolderId={selectedFolder?.id ?? null}
+        defaultChantier={selectedChantier?.title ?? ''}
       />
     </div>
   );

@@ -132,8 +132,13 @@ export const SuiviPage: React.FC = () => {
   } = useGedParalleleByFolder(folderId);
 
   const refetchLeftGeds = useCallback(async () => {
-    const list = await fetchAllGeds();
-    setItems(list);
+    setLoading(true);
+    try {
+      const list = await fetchAllGeds();
+      setItems(list);
+    } finally {
+      setLoading(false);
+    }
   }, [fetchAllGeds]);
 
   const handleMoveSuccess = useCallback(async () => {

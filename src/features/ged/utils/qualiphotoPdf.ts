@@ -327,8 +327,21 @@ export async function generateFolderGedsTablePdf(
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...BLUE);
   const titleWidth = doc.getTextWidth(safeTitle);
-  doc.text(safeTitle, (pageWidth - titleWidth) / 2, y + 6);
+  const titleY = y + 6;
+  doc.text(safeTitle, (pageWidth - titleWidth) / 2, titleY);
   y += FOLDER_PDF.titleSpacingBelowMm;
+  
+  // Add a horizontal line separator if title starts with "Assigned to:"
+  // Draw the line below the title text with proper spacing
+  if (safeTitle.startsWith('Assigned to:')) {
+    doc.setDrawColor(...GRAY);
+    doc.setLineWidth(0.5);
+    // Position line after title text (titleY + font height) with spacing
+    const titleHeight = FOLDER_PDF.titleFontSize * 0.35; // Approximate font height in mm
+    const lineY = titleY + titleHeight + 4; // 4mm spacing after title text
+    doc.line(margin, lineY, pageWidth - margin, lineY);
+    y = lineY + 3; // Update y position to account for the line
+  }
 
   // —— 2. Introduction (under title) ——
   const introduction = options?.introduction?.trim() ?? '';

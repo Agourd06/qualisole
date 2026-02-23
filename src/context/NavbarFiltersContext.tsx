@@ -26,6 +26,7 @@ export interface NavbarFiltersState {
   selectedChantier: Projet | null;
   selectedFolder: Folder | null;
   selectedAuthorId: string | null;
+  selectedAssignedToId: string | null;
   refreshTrigger: number;
 }
 
@@ -35,6 +36,7 @@ export interface NavbarFiltersContextValue extends NavbarFiltersState {
   setSelectedChantier: (value: Projet | null) => void;
   setSelectedFolder: (value: Folder | null) => void;
   setSelectedAuthorId: (value: string | null) => void;
+  setSelectedAssignedToId: (value: string | null) => void;
   triggerRefresh: () => void;
 }
 
@@ -46,6 +48,7 @@ export const NavbarFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedChantier, setSelectedChantier] = useState<Projet | null>(NO_CHANTIER_PROJET);
   const [selectedFolder, setSelectedFolderState] = useState<Folder | null>(null);
   const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
+  const [selectedAssignedToId, setSelectedAssignedToId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const setSelectedChantierAndClearFolder = useCallback((projet: Projet | null) => {
@@ -64,15 +67,17 @@ export const NavbarFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedChantier,
       selectedFolder,
       selectedAuthorId,
+      selectedAssignedToId,
       refreshTrigger,
       setDateDebut,
       setDateFin,
       setSelectedChantier: setSelectedChantierAndClearFolder,
       setSelectedFolder: setSelectedFolderState,
       setSelectedAuthorId,
+      setSelectedAssignedToId,
       triggerRefresh,
     }),
-    [dateDebut, dateFin, selectedChantier, selectedFolder, selectedAuthorId, refreshTrigger, setSelectedChantierAndClearFolder, triggerRefresh],
+    [dateDebut, dateFin, selectedChantier, selectedFolder, selectedAuthorId, selectedAssignedToId, refreshTrigger, setSelectedChantierAndClearFolder, triggerRefresh],
   );
 
   return (

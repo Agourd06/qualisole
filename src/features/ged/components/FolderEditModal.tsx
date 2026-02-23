@@ -95,8 +95,13 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
   if (!open) return null;
 
   return (
-    <Modal open={open} onClose={onClose} titleId="folder-edit-modal-title">
-      <div className="mx-auto w-full max-w-6xl bg-gradient-to-br from-neutral-50 via-white to-neutral-100/80">
+    <Modal 
+      open={open} 
+      onClose={onClose} 
+      titleId="folder-edit-modal-title"
+      contentClassName="relative z-10 w-[90vw] max-w-[90vw] max-h-[90vh] overflow-auto rounded-2xl bg-white shadow-2xl focus:outline-none"
+    >
+      <div className="mx-auto w-full bg-gradient-to-br from-neutral-50 via-white to-neutral-100/80">
         <header className="flex items-center justify-between border-b border-neutral-200/70 bg-white/95 px-6 py-3 backdrop-blur-sm">
           <h2
             id="folder-edit-modal-title"
@@ -127,7 +132,7 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
         </header>
 
         <div className="px-6 py-5">
-          <div className="mx-auto flex max-w-6xl flex-col space-y-6 items-stretch">
+          <div className="mx-auto flex w-full flex-col space-y-6 items-stretch">
             <div>
               <label className="mb-2 block text-sm font-medium uppercase tracking-wide text-neutral-500">
                 {t('folderTitleLabel')}
@@ -140,8 +145,8 @@ export const FolderEditModal: React.FC<FolderEditModalProps> = ({
                   className="min-w-0 flex-1 border-0 bg-transparent px-5 py-3.5 text-base font-medium text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-0"
                   placeholder={t('folderTitlePlaceholder')}
                 />
-                <span className="mr-2 shrink-0 text-neutral-400">
-                  <PencilIcon className="h-5 w-5" />
+                <span className="mr-2 shrink-0 text-primary">
+                  <PencilIcon className="h-6 w-6" />
                 </span>
               </div>
             </div>
