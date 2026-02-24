@@ -3,7 +3,9 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en';
 import fr from './locales/fr';
 
-const STORAGE_KEY = 'qualsol_lang';
+// New storage key so default resets to French for everyone.
+// Old key was 'qualsol_lang' which may have stored 'en'.
+const STORAGE_KEY = 'qualsol_lang_v2';
 
 function getStoredLanguage(): 'fr' | 'en' {
   if (typeof window === 'undefined') return 'fr';
